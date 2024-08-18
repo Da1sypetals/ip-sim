@@ -1,0 +1,20 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug-nonstop",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceRoot}/target/debug/ip-sim",
+            "args": [
+                "0.01",
+                "9.8",
+                "100",
+                "0.001",
+                "false",
+            ],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "cargo build",
+        }
+    ]
+}
