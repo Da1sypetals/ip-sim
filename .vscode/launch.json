@@ -2,15 +2,26 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug-nonstop",
+            "name": "Debug-with-stop",
             "type": "lldb",
             "request": "launch",
             "program": "${workspaceRoot}/target/debug/ip-sim",
             "args": [
+                // dt
                 "0.01",
+                // g
                 "9.8",
+                // max_iters
                 "100",
+                // tol
                 "0.001",
+                // max_linesearch_step
+                "10",
+                // tau
+                "0.5",
+                // beta
+                "0.1",
+                // nonstop
                 "false",
             ],
             "cwd": "${workspaceFolder}",

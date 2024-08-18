@@ -10,7 +10,7 @@ mod draw;
 mod sim;
 
 fn pause() {
-    print!("Press Enter to continue...");
+    println!("Press Enter to continue...");
     io::stdout().flush().unwrap();
     let mut input = String::new();
     io::stdin().read_line(&mut input).unwrap();
@@ -34,7 +34,7 @@ struct RunConfig {
 #[macroquad::main(window_conf)]
 async fn main() {
     let args: Vec<String> = env::args().collect();
-    if args.len() != 6 {
+    if args.len() != 9 {
         eprintln!("Usage: {} <dt> <g> <max_iters> <tol> <nonstop>", args[0]);
         eprintln!("Got params: {:?}", args);
         std::process::exit(1);
@@ -42,9 +42,12 @@ async fn main() {
 
     let dt: f32 = args[1].parse().expect("Invalid f32 argument");
     let g: f32 = args[2].parse().expect("Invalid f32 argument");
-    let max_iters: u32 = args[3].parse().expect("Invalid integer argument");
+    let max_iters: u32 = args[3].parse().expect("Invalid u32 argument");
     let tol: f32 = args[4].parse().expect("Invalid f32 argument");
-    let nonstop: bool = args[5].parse().expect("Invalid bool argument");
+    let max_linesearch_step: u32 = args[5].parse().expect("Invalid u32 argument");
+    let tau: f32 = args[6].parse().expect("Invalid f32 argument");
+    let beta: f32 = args[7].parse().expect("Invalid f32 argument");
+    let nonstop: bool = args[8].parse().expect("Invalid bool argument");
 
     let run_config = RunConfig { g, dt };
 
@@ -63,7 +66,7 @@ async fn main() {
         clear_background(BLACK);
 
         // step
-        sim.step(max_iters, tol);
+        sim.step_damped_newton(max_iters, tol, max_linesearch_step, tau, beta);
 
         // draw
         for body in &sim.bodies {

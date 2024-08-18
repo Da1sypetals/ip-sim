@@ -1,13 +1,14 @@
 use faer::Col;
 
-use crate::RunConfig;
+use crate::{sim::solver::damped_newton::DampedNewtonSolver, RunConfig};
 
 use super::{
     body::{
         body::{Body, GenericBody, Ip},
         springsbody::SpringsBodyIp,
     },
-    solver::newton::{NewtonFrame, NewtonSolver},
+    solver::frame::NewtonFrame,
+    solver::newton::NewtonSolver,
     utils::hess::Hess,
 };
 
@@ -93,7 +94,14 @@ impl Simulation {
         }
     }
 
-    pub fn step(&mut self, max_iters: u32, tol: f32) {
+    pub fn step_damped_newton(
+        &mut self,
+        max_iters: u32,
+        tol: f32,
+        max_linesearch_step: u32,
+        tau: f32,
+        beta: f32,
+    ) {
         println!("step start!");
         let dof_init = self.init_dof();
 
@@ -111,9 +119,75 @@ impl Simulation {
         }
 
         // run newton solver with closure as parameter.
-        let dof_next = NewtonSolver::new(max_iters, tol).run(
+        let dof_next = DampedNewtonSolver {
+            max_iters,
+            tol,
+            max_linesearch_step,
+            tau,
+            beta,
+        }
+        .run(
             dof_init,
-            // compute grad and hess
+            // compute grad and hess: given DOF
+            |frame: &mut NewtonFrame, fill_energy: bool, fill_grad: bool, fill_hess: bool| {
+                for body in &mut self.bodies {
+                    match body {
+                        Body::Affine() => todo!(),
+                        Body::Soft() => todo!(),
+                        Body::Springs(spbody, offset) => {
+                            let mut dof = Col::<f32>::zeros(spbody.ndof);
+                            dof.copy_from(frame.dof.as_ref().subrows(*offset, spbody.ndof));
+
+                            // fill fields according to option
+                            if fill_energy {
+                                let energy = self.springsbody_ip.value(spbody, &dof);
+                                frame.energy += energy;
+                            }
+                            if fill_grad {
+                                let mut grad = Col::<f32>::zeros(spbody.ndof);
+                                self.springsbody_ip.grad(spbody, &dof, &mut grad);
+                                frame.append_grad(&grad, *offset);
+                            }
+                            if fill_hess {
+                                let mut hess = Hess::new(spbody.ndof);
+                                self.springsbody_ip.hess(spbody, &dof, &mut hess);
+                                frame.append_hess(&hess, *offset);
+                            }
+                        }
+                    }
+                }
+                frame.hess.build();
+            },
+        );
+
+        self.dof.copy_from(dof_next);
+
+        println!("Optimized dof: {:?}", self.dof.transpose());
+
+        self.post_step();
+    }
+
+    pub fn step_newton(&mut self, max_iters: u32, tol: f32) {
+        println!("step start!");
+        let dof_init = self.init_dof();
+
+        println!("Init dof: {:?}", dof_init.transpose());
+
+        // call `prepare` for all bodies
+        for body in &mut self.bodies {
+            match body {
+                Body::Affine() => todo!(),
+                Body::Soft() => todo!(),
+                Body::Springs(spbody, _) => {
+                    self.springsbody_ip.prepare(spbody);
+                }
+            }
+        }
+
+        // run newton solver with closure as parameter.
+        let dof_next = NewtonSolver { max_iters, tol }.run(
+            dof_init,
+            // compute grad and hess: given DOF
             |frame: &mut NewtonFrame| {
                 for body in &mut self.bodies {
                     match body {
@@ -126,9 +200,11 @@ impl Simulation {
                             let mut hess = Hess::new(spbody.ndof);
 
                             // replace dof here with springdof type.
+                            let energy = self.springsbody_ip.value(spbody, &dof);
                             self.springsbody_ip.grad(spbody, &dof, &mut grad);
                             self.springsbody_ip.hess(spbody, &dof, &mut hess);
 
+                            frame.energy += energy;
                             frame.append_grad(&grad, *offset);
                             frame.append_hess(&hess, *offset);
 
