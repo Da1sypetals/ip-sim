@@ -10,8 +10,8 @@ pub type Vec6 = glm::TVec<f32, 6>;
 #[derive(Clone, Copy)]
 /// ## Trivially Copyable: No moving.
 pub struct ContactIndex {
-    pub p: usize,
-    pub e: (usize, usize),
+    pub p: Option<usize>,
+    pub e: Option<(usize, usize)>,
 }
 
 impl ContactIndex {
@@ -102,6 +102,8 @@ impl ContactPairGrad {
         res
     }
 }
+
+#[derive(Clone)]
 pub struct ContactPair {
     pub edge: (glm::Vec2, glm::Vec2),
     pub point: glm::Vec2,
