@@ -102,7 +102,7 @@ impl Simulation {
     /// 1. count dof
     /// 2. set all offsets
     pub fn new(gen_bodies: Vec<GenericBody>, run_config: &RunConfig) -> Self {
-        let mut ndof = 0usize;
+        let mut ndof_accumulated = 0usize;
         let mut bodies: Vec<Body> = Vec::new();
         // count dof & set offset
         for gen_body in gen_bodies {
@@ -110,21 +110,25 @@ impl Simulation {
             match gen_body {
                 GenericBody::Affine() => todo!(),
                 GenericBody::Soft() => todo!(),
-                GenericBody::Static(_) => todo!(),
+                GenericBody::Static(stbody) => {
+                    let offset = ndof_accumulated;
+                    // accumulate ndof
+                    body = Body::Static(stbody, offset);
+                }
                 GenericBody::Springs(spbody) => {
                     // offset = current dof added
-                    let offset = ndof;
+                    let offset = ndof_accumulated;
                     // accumulate ndof
-                    ndof += spbody.ndof;
                     body = Body::Springs(spbody, offset);
                 }
             }
+            ndof_accumulated += body.get_ndof();
             bodies.push(body);
         }
 
         Simulation {
-            ndof,
-            dof: Col::<f32>::zeros(ndof),
+            ndof: ndof_accumulated,
+            dof: Col::<f32>::zeros(ndof_accumulated),
             bodies,
             springsbody_ip: SpringsBodyIp::new(run_config),
         }

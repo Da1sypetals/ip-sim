@@ -33,7 +33,9 @@ impl NewtonFrame {
     }
     pub fn append_hess(&mut self, hess: &Hess, offset: usize) {
         for (i, j, val) in &hess.trip {
-            self.hess.add_elem(*i, *j, *val);
+            let hess_i = i + offset;
+            let hess_j = j + offset;
+            self.hess.add_elem(hess_i, hess_j, *val);
         }
     }
 }

@@ -46,19 +46,13 @@ impl Body {
             Body::Springs(spbody, offset) => {
                 let ndof = spbody.ndof;
                 let mut res = Col::zeros(ndof);
-                for i in 0..ndof {
-                    let idof = i + *offset;
-                    res[i] = full_dof[idof];
-                }
+                res.copy_from(full_dof.as_ref().subrows(*offset, spbody.ndof));
                 res
             }
             Body::Static(stbody, offset) => {
                 let ndof = stbody.ndof;
                 let mut res = Col::zeros(ndof);
-                for i in 0..ndof {
-                    let idof = i + *offset;
-                    res[i] = full_dof[idof];
-                }
+                res.copy_from(full_dof.as_ref().subrows(*offset, stbody.ndof));
                 res
             }
         }

@@ -3,6 +3,7 @@ use draw::draw::Draw;
 use macroquad::prelude::*;
 use sim::body::body::GenericBody;
 use sim::body::springsbody::SpringsBody;
+use sim::body::staticbody::StaticBody;
 use sim::sim::Simulation;
 use std::env;
 use std::io::{self, Write};
@@ -34,7 +35,7 @@ struct RunConfig {
 #[macroquad::main(window_conf)]
 async fn main() {
     let args: Vec<String> = env::args().collect();
-    if args.len() != 9 {
+    if args.len() != 10 {
         eprintln!("Usage: {} <dt> <g> <max_iters> <tol> <nonstop>", args[0]);
         eprintln!("Got params: {:?}", args);
         std::process::exit(1);
@@ -47,14 +48,18 @@ async fn main() {
     let max_linesearch_step: u32 = args[5].parse().expect("Invalid u32 argument");
     let tau: f32 = args[6].parse().expect("Invalid f32 argument");
     let beta: f32 = args[7].parse().expect("Invalid f32 argument");
-    let nonstop: bool = args[8].parse().expect("Invalid bool argument");
+    let dhat: f32 = args[8].parse().expect("Invalid f32 argument");
+    let nonstop: bool = args[9].parse().expect("Invalid bool argument");
 
     let run_config = RunConfig { g, dt };
 
     // ###################### create and init simulator ######################
 
+    let boundary_body =
+        StaticBody::from_file("boundary.sta").expect("Failed to read static body file!");
     let spbody = SpringsBody::from_file("springs.spr").expect("Failed to read spring file!");
     let mut gen_bodies: Vec<GenericBody> = Vec::new();
+    gen_bodies.push(GenericBody::Static(boundary_body));
     gen_bodies.push(GenericBody::Springs(spbody));
 
     let mut sim = Simulation::new(gen_bodies, &run_config);
@@ -66,7 +71,7 @@ async fn main() {
         clear_background(BLACK);
 
         // step
-        sim.step_damped_newton(max_iters, tol, max_linesearch_step, tau, beta);
+        sim.step_damped_newton_with_contact(max_iters, tol, max_linesearch_step, tau, beta, dhat);
 
         // draw
         for body in &sim.bodies {

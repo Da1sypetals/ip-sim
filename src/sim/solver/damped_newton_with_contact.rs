@@ -60,7 +60,8 @@ impl DampedNewtonSolverWithContact {
     }
 
     /// **Assume dof is already filled**
-    /// - use the current dof.
+    /// - use the current dof
+    /// - and metadata from bodies.
     pub fn fill_frame(
         sim: &mut Simulation,
         contact_pairs: &Vec<ContactPair>,
@@ -71,15 +72,14 @@ impl DampedNewtonSolverWithContact {
     ) {
         // todo: energy, grad and hessian of contact pairs.
 
-        for body in &mut sim.bodies {
+        // energy, grad and hessian of bodies:
+        for body in &sim.bodies {
+            let dof = body.extract_dof(&frame.dof);
             match body {
                 Body::Affine() => todo!(),
                 Body::Soft() => todo!(),
                 Body::Springs(spbody, offset) => {
-                    let mut dof = Col::<f32>::zeros(spbody.ndof);
                     // fill fields according to option
-                    dof.copy_from(frame.dof.as_ref().subrows(*offset, spbody.ndof));
-
                     if fill_energy {
                         let energy = sim.springsbody_ip.value(spbody, &dof);
                         frame.energy += energy;
@@ -102,17 +102,24 @@ impl DampedNewtonSolverWithContact {
     }
 
     /// # TODO!
-    pub fn find_contact_pairs(&self, sim: &mut Simulation) -> Vec<ContactPair> {
+    /// - Given configuration,
+    pub fn find_contact_pairs(
+        &self,
+        frame: &NewtonFrame,
+        sim: &mut Simulation,
+    ) -> Vec<ContactPair> {
+        return Vec::new();
+
         let mut contact_pairs = Vec::<ContactPair>::new();
-        for body in &mut sim.bodies {
+        for body in &sim.bodies {
+            let dof = body.extract_dof(&frame.dof);
             match body {
                 Body::Affine() => todo!(),
                 Body::Soft() => todo!(),
                 Body::Springs(spbody, offset) => {
-                    let n = spbody.ndof / 2;
+                    let n: usize = spbody.ndof / 2;
                     for i in 0..n {
-                        let node = glm::vec2(spbody.x[i * 2], spbody.x[i * 2 + 1]);
-                        // todo: add collision pair with boundary
+                        // todo: add collision pair with static object: boundary
                         todo!()
                     }
                 }
@@ -139,7 +146,7 @@ impl DampedNewtonSolverWithContact {
             frame.new_iteration();
 
             // find contact pairs which contributes to IP
-            let contact_pairs = self.find_contact_pairs(sim);
+            let contact_pairs = self.find_contact_pairs(&frame, sim);
             // fill grad and hess of search starting frame
             DampedNewtonSolverWithContact::fill_frame(
                 sim,
