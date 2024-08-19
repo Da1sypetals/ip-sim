@@ -1,4 +1,4 @@
-use super::springsbody::SpringsBody;
+use super::{springsbody::SpringsBody, staticbody::StaticBody};
 use crate::sim::utils::hess::Hess;
 use faer::Col;
 
@@ -16,6 +16,7 @@ pub enum GenericBody {
     Affine(),
     Soft(),
     Springs(SpringsBody),
+    Static(StaticBody),
 }
 
 impl GenericBody {
@@ -23,6 +24,7 @@ impl GenericBody {
         match self {
             GenericBody::Affine() => todo!(),
             GenericBody::Soft() => todo!(),
+            GenericBody::Static(_) => todo!(),
             GenericBody::Springs(spbody) => spbody.ndof,
         }
     }
@@ -33,15 +35,25 @@ pub enum Body {
     Affine(),
     Soft(),
     Springs(SpringsBody, usize),
+    Static(StaticBody, usize),
 }
 
 impl Body {
-    pub fn get_dof(&self, full_dof: &Col<f32>) -> Col<f32> {
+    pub fn extract_dof(&self, full_dof: &Col<f32>) -> Col<f32> {
         match self {
             Body::Affine() => todo!(),
             Body::Soft() => todo!(),
             Body::Springs(spbody, offset) => {
                 let ndof = spbody.ndof;
+                let mut res = Col::zeros(ndof);
+                for i in 0..ndof {
+                    let idof = i + *offset;
+                    res[i] = full_dof[idof];
+                }
+                res
+            }
+            Body::Static(stbody, offset) => {
+                let ndof = stbody.ndof;
                 let mut res = Col::zeros(ndof);
                 for i in 0..ndof {
                     let idof = i + *offset;
@@ -56,6 +68,7 @@ impl Body {
             Body::Affine() => todo!(),
             Body::Soft() => todo!(),
             Body::Springs(_, offset) => *offset,
+            Body::Static(_, offset) => *offset,
         }
     }
     pub fn get_ndof(&self) -> usize {
@@ -63,6 +76,7 @@ impl Body {
             Body::Affine() => todo!(),
             Body::Soft() => todo!(),
             Body::Springs(spbody, _) => spbody.ndof,
+            Body::Static(stbody, _) => stbody.ndof,
         }
     }
 }
