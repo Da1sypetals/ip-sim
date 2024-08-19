@@ -95,7 +95,6 @@ impl DampedNewtonSolverWithContact {
                         frame.append_hess(&hess, *offset);
                     }
                 }
-                Body::Static(_, _) => (), // no potential, do nothing
             }
         }
         frame.hess.build();
@@ -122,9 +121,6 @@ impl DampedNewtonSolverWithContact {
                         // todo: add collision pair with static object: boundary
                         todo!()
                     }
-                }
-                Body::Static(stbody, offset) => {
-                    todo!()
                 }
             }
         }

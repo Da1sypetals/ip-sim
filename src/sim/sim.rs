@@ -110,11 +110,6 @@ impl Simulation {
             match gen_body {
                 GenericBody::Affine() => todo!(),
                 GenericBody::Soft() => todo!(),
-                GenericBody::Static(stbody) => {
-                    let offset = ndof_accumulated;
-                    // accumulate ndof
-                    body = Body::Static(stbody, offset);
-                }
                 GenericBody::Springs(spbody) => {
                     // offset = current dof added
                     let offset = ndof_accumulated;
@@ -147,12 +142,6 @@ impl Simulation {
                         dof[idof] = spbody.x[i];
                     }
                 }
-                Body::Static(stbody, offset) => {
-                    for i in 0..stbody.ndof {
-                        let idof = i + offset;
-                        dof[idof] = stbody.x[i];
-                    }
-                }
             }
         }
         dof
@@ -176,12 +165,6 @@ impl Simulation {
                     spbody.x.copy_from(&dof);
                     spbody.v = faer::scale(1f32 / self.springsbody_ip.run_cfg.dt)
                         * (&spbody.x - &spbody.xprev);
-                }
-                Body::Static(stbody, offset) => {
-                    // copy new x from dof to body
-                    let mut dof = Col::<f32>::zeros(stbody.ndof);
-                    dof.copy_from(self.dof.as_ref().subrows(*offset, stbody.ndof));
-                    stbody.x.copy_from(&dof);
                 }
             }
         }
@@ -209,7 +192,6 @@ impl Simulation {
                 Body::Springs(spbody, _) => {
                     self.springsbody_ip.prepare(spbody);
                 }
-                Body::Static(_, _) => (), // do nothing
             }
         }
 
@@ -252,7 +234,6 @@ impl Simulation {
                 Body::Springs(spbody, _) => {
                     self.springsbody_ip.prepare(spbody);
                 }
-                Body::Static(_, _) => (), // do nothing
             }
         }
 
@@ -292,7 +273,6 @@ impl Simulation {
                                 frame.append_hess(&hess, *offset);
                             }
                         }
-                        Body::Static(_, _) => (),
                     }
                 }
                 frame.hess.build();
@@ -320,7 +300,6 @@ impl Simulation {
                 Body::Springs(spbody, _) => {
                     self.springsbody_ip.prepare(spbody);
                 }
-                Body::Static(_, _) => (), // do nothing
             }
         }
 
@@ -350,7 +329,6 @@ impl Simulation {
 
                             // todo!()
                         }
-                        Body::Static(_, _) => (),
                     }
                 }
                 frame.hess.build();

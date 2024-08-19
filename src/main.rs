@@ -55,12 +55,11 @@ async fn main() {
 
     // ###################### create and init simulator ######################
 
-    let boundary_body =
-        StaticBody::from_file("boundary.sta").expect("Failed to read static body file!");
     let spbody = SpringsBody::from_file("springs.spr").expect("Failed to read spring file!");
+    let spbody2 = SpringsBody::from_file("springs2.spr").expect("Failed to read spring file!");
     let mut gen_bodies: Vec<GenericBody> = Vec::new();
-    gen_bodies.push(GenericBody::Static(boundary_body));
     gen_bodies.push(GenericBody::Springs(spbody));
+    gen_bodies.push(GenericBody::Springs(spbody2));
 
     let mut sim = Simulation::new(gen_bodies, &run_config);
 

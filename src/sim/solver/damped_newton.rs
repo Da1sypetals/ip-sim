@@ -1,7 +1,4 @@
-use core::alloc;
-
 use super::frame::NewtonFrame;
-use crate::sim::utils::hess::Hess;
 use faer::{solvers::SpSolver, Col};
 
 pub struct DampedNewtonSolver {

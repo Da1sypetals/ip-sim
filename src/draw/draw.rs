@@ -44,18 +44,6 @@ impl Draw for Body {
                     draw_link(&x1, &x2);
                 }
             }
-            Body::Static(stbody, _) => {
-                let n = stbody.ndof / 2;
-                for i in 0..n {
-                    let x = glm::vec2(stbody.x[i * 2], stbody.x[i * 2 + 1]);
-                    draw_point(&x);
-                }
-                for (e0, e1) in &stbody.edges {
-                    let x1 = glm::vec2(stbody.x[e0 * 2], stbody.x[e0 * 2 + 1]);
-                    let x2 = glm::vec2(stbody.x[e1 * 2], stbody.x[e1 * 2 + 1]);
-                    draw_link(&x1, &x2);
-                }
-            }
         }
     }
 }
