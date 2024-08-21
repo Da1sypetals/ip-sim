@@ -1,11 +1,7 @@
 use faer::Col;
-use glm::zero;
-use nalgebra::{ArrayStorage, Matrix6x5, U6};
+use nalgebra::{ArrayStorage, U6};
 
-use crate::{
-    sim::{body::body::Ip, utils::hess::Hess},
-    RunConfig,
-};
+use crate::{sim:: utils::hess::Hess, RunConfig};
 
 pub type ContactHessType = nalgebra::Matrix<f32, U6, U6, ArrayStorage<f32, 6, 6>>;
 pub type Vec6 = glm::TVec<f32, 6>;

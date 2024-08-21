@@ -23,6 +23,8 @@
                 "0.1",
                 // dhat
                 "0.001",
+                // s (typically 0.1 or 0.2)
+                "0.1",
                 // nonstop
                 "false",
             ],

@@ -83,7 +83,8 @@ impl Boundary {
     ) {
         for edge in Boundary::edges() {
             for inode in 0..spbody.ndof / 2 {
-                let point = glm::vec2(dof[inode * 2], dof[inode * 2 + 1]);
+                let (ix, iy) = (offset + inode * 2, offset + inode * 2 + 1);
+                let point = glm::vec2(dof[ix], dof[iy]);
                 let pair = ContactPair {
                     edge,
                     point,
@@ -92,7 +93,9 @@ impl Boundary {
                         e: None,
                     },
                 };
-                pairs.push(pair);
+                if pair.distance() < dhat {
+                    pairs.push(pair);
+                }
             }
         }
     }

@@ -3,7 +3,6 @@ use draw::draw::Draw;
 use macroquad::prelude::*;
 use sim::body::body::GenericBody;
 use sim::body::springsbody::SpringsBody;
-use sim::body::staticbody::StaticBody;
 use sim::sim::Simulation;
 use std::env;
 use std::io::{self, Write};
