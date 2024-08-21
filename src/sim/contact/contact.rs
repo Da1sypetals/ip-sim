@@ -1,7 +1,10 @@
-use faer::Col;
+use faer::{linalg::svd::SvdParams, Col};
 use nalgebra::{ArrayStorage, U6};
 
-use crate::{sim:: utils::hess::Hess, RunConfig};
+use crate::{
+    sim::utils::{hess::Hess, misc::hess_spd_proj},
+    RunConfig,
+};
 
 pub type ContactHessType = nalgebra::Matrix<f32, U6, U6, ArrayStorage<f32, 6, 6>>;
 pub type Vec6 = glm::TVec<f32, 6>;
@@ -392,7 +395,9 @@ impl ContactPairIp {
 
         let d_hess = body.distance_hess();
         let d_grad = body.distance_grad().assemble();
-        let hess = diff2 * d_grad * d_grad.transpose() + diff1 * d_hess.hess;
+        let hess_raw = diff2 * d_grad * d_grad.transpose() + diff1 * d_hess.hess;
+        // hess projection
+        let hess = hess_spd_proj(&hess_raw);
 
         // fill into `result`
         // raw_idx: index within the contact pair.

@@ -1,7 +1,8 @@
-use std::ops::Bound;
-
 use super::super::body::body::Body;
-use crate::sim::sim::{Boundary, Simulation};
+use crate::sim::{
+    sim::{Boundary, Simulation},
+    utils::misc::dof_index,
+};
 use faer::Col;
 
 use super::contact::{ContactIndex, ContactPair};
@@ -97,9 +98,10 @@ impl AccdMassive {
                 Body::Soft() => todo!(),
                 Body::Springs(spbody, offset) => {
                     for inode in 0..spbody.ndof / 2 {
+                        let (ix, iy) = dof_index(inode, *offset);
                         for edge in Boundary::edges() {
-                            let node = glm::vec2(dof[inode * 2], dof[inode * 2 + 1]);
-                            let node_dir = glm::vec2(dir[inode * 2], dir[inode * 2 + 1]);
+                            let node = glm::vec2(dof[ix], dof[iy]);
+                            let node_dir = glm::vec2(dir[ix], dir[iy]);
                             let index = ContactIndex {
                                 p: Some((inode * 2, inode * 2 + 1)),
                                 e: None,
@@ -123,6 +125,7 @@ impl AccdMassive {
             }
         }
 
-        todo!()
+        // todo!()
+        t
     }
 }

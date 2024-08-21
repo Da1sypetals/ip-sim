@@ -175,8 +175,8 @@ impl Simulation {
                     let mut dof = Col::<f32>::zeros(spbody.ndof);
                     dof.copy_from(self.dof.as_ref().subrows(*offset, spbody.ndof));
 
-                    dof[0] = spbody.x[0];
-                    dof[1] = spbody.x[1];
+                    // dof[0] = spbody.x[0];
+                    // dof[1] = spbody.x[1];
                     spbody.x.copy_from(&dof);
                     spbody.v = faer::scale(1f32 / self.springsbody_ip.run_cfg.dt)
                         * (&spbody.x - &spbody.xprev);

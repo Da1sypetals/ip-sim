@@ -1,13 +1,7 @@
-use core::alloc;
-use std::ops::Bound;
-
 use super::frame::NewtonFrame;
 use crate::sim::{
     body::body::{Body, Ip},
-    contact::{
-        accd::{Accd, AccdMassive},
-        contact::ContactPair,
-    },
+    contact::{accd::AccdMassive, contact::ContactPair},
     sim::{Boundary, Simulation},
     utils::hess::Hess,
 };
@@ -33,6 +27,7 @@ impl DampedNewtonSolverWithContact {
         dir: &Col<f32>,
         alpha_init: f32,
     ) -> f32 {
+        print!("alpha_init = {}", alpha_init);
         let mut alpha = alpha_init;
         for i_search in 0..self.max_linesearch_step {
             // 1. current frame
@@ -120,7 +115,7 @@ impl DampedNewtonSolverWithContact {
                 Body::Soft() => todo!(),
                 Body::Springs(spbody, offset) => {
                     let n: usize = spbody.ndof / 2;
-                    for i in 0..n {
+                    for _ in 0..n {
                         // todo: add collision pair with static object: boundary
                         Boundary::collect_contact_pairs_springbody_with_boundary(
                             spbody,
