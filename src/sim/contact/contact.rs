@@ -2,42 +2,44 @@ use faer::Col;
 use glm::zero;
 use nalgebra::{ArrayStorage, Matrix6x5, U6};
 
-use crate::sim::utils::hess::Hess;
+use crate::{
+    sim::{body::body::Ip, utils::hess::Hess},
+    RunConfig,
+};
 
 pub type ContactHessType = nalgebra::Matrix<f32, U6, U6, ArrayStorage<f32, 6, 6>>;
 pub type Vec6 = glm::TVec<f32, 6>;
 
 #[derive(Clone, Copy)]
 /// ## Trivially Copyable: No moving.
+/// - currently each point is 2 dof
 pub struct ContactIndex {
-    pub p: Option<usize>,
-    pub e: Option<(usize, usize)>,
+    pub p: Option<(usize, usize)>,
+    pub e: Option<((usize, usize), (usize, usize))>,
 }
 
 impl ContactIndex {
     /// ((raw_i, raw_j), irow, icol)
-    pub fn hess_indices(&self) -> Vec<((usize, usize), usize, usize)> {
+    pub fn hess_indices(&self) -> Vec<((usize, usize), Option<usize>, Option<usize>)> {
         // return:
         // [p*2, p*2+1, e.0*2, e.0*2+1, e.1*2, e.1*2+1]^2
         // (cart prod) in order.
         let mut indices = Vec::new();
 
         // Indices for the point p
-        let p_indices = self.p * 2;
+        let (ipx, ipy) = match self.p {
+            Some((ix, iy)) => (Some(ix), Some(iy)),
+            None => (None, None),
+        };
 
         // Indices for the edge e
-        let e0_indices = self.e.0 * 2;
-        let e1_indices = self.e.1 * 2;
+        let (ie0x, ie0y, ie1x, ie1y) = match self.e {
+            Some(((i0x, i0y), (i1x, i1y))) => (Some(i0x), Some(i0y), Some(i1x), Some(i1y)),
+            None => (None, None, None, None),
+        };
 
         // List of all indices to consider
-        let all_indices = [
-            p_indices,
-            p_indices + 1,
-            e0_indices,
-            e0_indices + 1,
-            e1_indices,
-            e1_indices + 1,
-        ];
+        let all_indices = [ipx, ipy, ie0x, ie0y, ie1x, ie1y];
 
         // Generate all pairs of indices
         for (i, &irow) in all_indices.iter().enumerate() {
@@ -69,16 +71,16 @@ impl ContactHess {
     }
 }
 
-pub struct ContactPairGrad {
+pub struct ContactGrad {
     pub g_point: glm::Vec2,
     pub g_edge: (glm::Vec2, glm::Vec2),
 
     pub index: ContactIndex,
 }
 
-impl ContactPairGrad {
-    pub fn scaled_by(&self, scalar: f32) -> ContactPairGrad {
-        ContactPairGrad {
+impl ContactGrad {
+    pub fn scaled_by(&self, scalar: f32) -> ContactGrad {
+        ContactGrad {
             g_edge: (self.g_edge.0 * scalar, self.g_edge.1 * scalar),
             g_point: self.g_point * scalar,
             index: self.index,
@@ -136,7 +138,7 @@ impl ContactPair {
         (p - proj_point).norm()
     }
 
-    pub fn distance_grad(&self) -> ContactPairGrad {
+    pub fn distance_grad(&self) -> ContactGrad {
         let (a, b) = self.edge;
         let p = self.point;
 
@@ -175,7 +177,7 @@ impl ContactPair {
             g_point = -g_proj_point;
         }
 
-        ContactPairGrad {
+        ContactGrad {
             g_edge: (g_edge_a, g_edge_b),
             g_point: g_point,
             index: self.index,
@@ -333,45 +335,78 @@ impl ContactPair {
 
         res
     }
+}
 
-    pub fn potential(&self, dhat: f32) -> f32 {
-        let d = self.distance();
-        return -(d - dhat) * (d - dhat) * ((d / dhat).ln());
-    }
+pub struct ContactPairIp {
+    pub run_config: RunConfig,
+}
 
-    pub fn grad_potential(&self, dhat: f32, result: &mut Col<f32>) {
-        let d = self.distance();
-        let diff1 = (d - dhat) * (-2f32 * d * (d / dhat).ln() - d + dhat) / d;
-
-        let grad = self.distance_grad().scaled_by(diff1);
-
-        // fill into `result`
-        result[grad.index.e.0 * 2] += grad.g_edge.0.x;
-        result[grad.index.e.0 * 2 + 1] += grad.g_edge.0.y;
-
-        result[grad.index.e.1 * 2] += grad.g_edge.1.x;
-        result[grad.index.e.1 * 2 + 1] += grad.g_edge.1.y;
-
-        result[grad.index.p * 2] += grad.g_point.x;
-        result[grad.index.p * 2 + 1] += grad.g_point.y;
-    }
-
-    pub fn hess_potential(&self, dhat: f32, result: &mut Hess) {
-        let d = self.distance();
-        let diff1 = (d - dhat) * (-2f32 * d * (d / dhat).ln() - d + dhat) / d;
-        let diff2 = -2f32 * (d / dhat).ln() - 3f32 + 2f32 * dhat / d + (dhat * dhat) / (d * d);
-
-        let d_hess = self.distance_hess();
-        let d_grad = self.distance_grad().assemble();
-        let hess = diff2 * d_grad * d_grad.transpose() + diff1 * d_hess.hess;
-
-        // todo: fill into `result`
-        for (raw_idx, irow, icol) in self.index.hess_indices() {
-            result.add_elem(irow, icol, hess[raw_idx]);
+impl ContactPairIp {
+    pub fn new(run_config: &RunConfig) -> Self {
+        Self {
+            run_config: run_config.clone(),
         }
     }
 }
 
-pub struct ContactIp {}
+impl ContactPairIp {
+    pub fn value(&self, body: &ContactPair) -> f32 {
+        let d = body.distance();
+        -(d - self.run_config.dhat) * (d - self.run_config.dhat) * ((d / self.run_config.dhat).ln())
+    }
 
-impl ContactIp {}
+    pub fn append_grad(&self, body: &ContactPair, result: &mut Col<f32>) {
+        let d = body.distance();
+        let diff1 = (d - self.run_config.dhat)
+            * (-2f32 * d * (d / self.run_config.dhat).ln() - d + self.run_config.dhat)
+            / d;
+
+        let grad = body.distance_grad().scaled_by(diff1);
+
+        // fill into `result`
+        match grad.index.e {
+            Some((e0, e1)) => {
+                // first node
+                result[e0.0] += grad.g_edge.0.x;
+                result[e0.1] += grad.g_edge.0.y;
+                // seconde node
+                result[e1.0] += grad.g_edge.1.x;
+                result[e1.1] += grad.g_edge.1.y;
+            }
+            None => (), // target dofs is not driven by dynamics
+        }
+
+        match grad.index.p {
+            Some((px, py)) => {
+                result[px] += grad.g_point.x;
+                result[py] += grad.g_point.y;
+            }
+            None => (), // target dof is not driven by dynamics
+        }
+    }
+
+    pub fn append_hess(&self, body: &ContactPair, result: &mut Hess) {
+        let d = body.distance();
+        let diff1 = (d - self.run_config.dhat)
+            * (-2f32 * d * (d / self.run_config.dhat).ln() - d + self.run_config.dhat)
+            / d;
+        let diff2 = -2f32 * (d / self.run_config.dhat).ln() - 3f32
+            + 2f32 * self.run_config.dhat / d
+            + (self.run_config.dhat * self.run_config.dhat) / (d * d);
+
+        let d_hess = body.distance_hess();
+        let d_grad = body.distance_grad().assemble();
+        let hess = diff2 * d_grad * d_grad.transpose() + diff1 * d_hess.hess;
+
+        // fill into `result`
+        // raw_idx: index within the contact pair.
+        for (raw_idx, irow, icol) in body.index.hess_indices() {
+            if let Some(i) = irow {
+                // if let cannot use && ???
+                if let Some(j) = icol {
+                    result.add_elem(i, j, hess[raw_idx]);
+                }
+            }
+        }
+    }
+}

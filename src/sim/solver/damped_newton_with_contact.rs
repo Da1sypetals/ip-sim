@@ -1,9 +1,13 @@
 use core::alloc;
+use std::ops::Bound;
 
 use super::frame::NewtonFrame;
 use crate::sim::{
     body::body::{Body, Ip},
-    contact::contact::ContactPair,
+    contact::{
+        accd::{Accd, AccdMassive},
+        contact::ContactPair,
+    },
     sim::{Boundary, Simulation},
     utils::hess::Hess,
 };
@@ -16,7 +20,7 @@ pub struct DampedNewtonSolverWithContact {
     pub max_linesearch_step: u32,
     pub tau: f32,  // line search step multiplier
     pub beta: f32, // armijo condition parameter
-    pub dhat: f32,
+    pub s: f32,
 }
 
 impl DampedNewtonSolverWithContact {
@@ -25,7 +29,6 @@ impl DampedNewtonSolverWithContact {
     fn line_search(
         &self,
         sim: &mut Simulation,
-        contact_pairs: &Vec<ContactPair>,
         start_frame: &NewtonFrame,
         dir: &Col<f32>,
         alpha_init: f32,
@@ -37,14 +40,7 @@ impl DampedNewtonSolverWithContact {
             let mut cur_frame = NewtonFrame::new(&cur_dof);
 
             // 2. armijo condition
-            DampedNewtonSolverWithContact::fill_frame(
-                sim,
-                &contact_pairs,
-                &mut cur_frame,
-                true,
-                false,
-                false,
-            ); // fill energy of cur_frame
+            DampedNewtonSolverWithContact::fill_frame(sim, &mut cur_frame, true, false, false); // fill energy of cur_frame
             let dot = start_frame.grad.transpose() * dir;
             let armijo = cur_frame.energy <= start_frame.energy + alpha * self.beta * dot;
             if armijo {
@@ -64,15 +60,27 @@ impl DampedNewtonSolverWithContact {
     /// - and metadata from bodies.
     pub fn fill_frame(
         sim: &mut Simulation,
-        contact_pairs: &Vec<ContactPair>,
         frame: &mut NewtonFrame,
         fill_energy: bool,
         fill_grad: bool,
         fill_hess: bool,
     ) {
-        // todo: energy, grad and hessian of contact pairs.
+        // 1. energy, grad and hessian of contact pairs.
+        // update all contact pairs at each computation.
+        let contact_pairs = DampedNewtonSolverWithContact::find_contact_pairs(frame, sim);
+        for pair in contact_pairs {
+            if fill_energy {
+                frame.energy += sim.contact_ip.value(&pair);
+            }
+            if fill_grad {
+                sim.contact_ip.append_grad(&pair, &mut frame.grad);
+            }
+            if fill_hess {
+                sim.contact_ip.append_hess(&pair, &mut frame.hess);
+            }
+        }
 
-        // energy, grad and hessian of bodies:
+        // 2. energy, grad and hessian of bodies:
         for body in &sim.bodies {
             let dof = body.extract_dof(&frame.dof);
             match body {
@@ -101,17 +109,12 @@ impl DampedNewtonSolverWithContact {
     }
 
     /// # TODO!
-    /// - Given configuration,
-    pub fn find_contact_pairs(
-        &self,
-        frame: &NewtonFrame,
-        sim: &mut Simulation,
-    ) -> Vec<ContactPair> {
-        return Vec::new();
-
-        let mut contact_pairs = Vec::<ContactPair>::new();
+    /// - Given configuration
+    /// - Return all contact pairs
+    pub fn find_contact_pairs(frame: &NewtonFrame, sim: &mut Simulation) -> Vec<ContactPair> {
+        let mut contact_pairs = Vec::new();
         for body in &sim.bodies {
-            let dof = body.extract_dof(&frame.dof);
+            // use raw dof here
             match body {
                 Body::Affine() => todo!(),
                 Body::Soft() => todo!(),
@@ -119,7 +122,13 @@ impl DampedNewtonSolverWithContact {
                     let n: usize = spbody.ndof / 2;
                     for i in 0..n {
                         // todo: add collision pair with static object: boundary
-                        todo!()
+                        Boundary::collect_contact_pairs_springbody_with_boundary(
+                            spbody,
+                            *offset,
+                            &frame.dof,
+                            sim.contact_ip.run_config.dhat,
+                            &mut contact_pairs,
+                        )
                     }
                 }
             }
@@ -142,24 +151,17 @@ impl DampedNewtonSolverWithContact {
             frame.new_iteration();
 
             // find contact pairs which contributes to IP
-            let contact_pairs = self.find_contact_pairs(&frame, sim);
+            // let contact_pairs = self.find_contact_pairs(&frame, sim);
             // fill grad and hess of search starting frame
-            DampedNewtonSolverWithContact::fill_frame(
-                sim,
-                &contact_pairs,
-                &mut frame,
-                true,
-                true,
-                true,
-            );
+            DampedNewtonSolverWithContact::fill_frame(sim, &mut frame, true, true, true);
 
             let direction = frame.hess.lu().solve(-&frame.grad);
             // dbg!(direction.transpose());
 
+            // collision detection
+            let alpha_init = AccdMassive::new(self.s).toi(sim, &frame.dof, &direction);
             // line search
-            // todo: collision detection
-            let alpha_init = 1f32;
-            let alpha = self.line_search(sim, &contact_pairs, &frame, &direction, alpha_init);
+            let alpha = self.line_search(sim, &frame, &direction, alpha_init);
 
             frame.dof += faer::scale(alpha) * &direction;
 

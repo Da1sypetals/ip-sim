@@ -1,3 +1,9 @@
+use std::ops::Bound;
+
+use super::super::body::body::Body;
+use crate::sim::sim::{Boundary, Simulation};
+use faer::Col;
+
 use super::contact::{ContactIndex, ContactPair};
 pub struct ContactPairDir {
     pub edge: (glm::Vec2, glm::Vec2),
@@ -7,8 +13,8 @@ pub struct ContactPairDir {
 }
 
 pub struct Accd {
-    s: f32,
-    t_c: f32,
+    pub s: f32,
+    pub t_c: f32,
 }
 
 impl Accd {
@@ -62,5 +68,61 @@ impl Accd {
         }
 
         t
+    }
+}
+
+pub struct AccdMassive {
+    pub s: f32,
+    pub t_c: f32,
+}
+
+impl AccdMassive {
+    pub fn new(s: f32) -> Self {
+        Self { s, t_c: 1f32 }
+    }
+
+    /// Compute the `toi` for the whole simulation
+    /// - given current `dof` and line search `dir`
+    /// Currently only springbody and boundaries
+    pub fn toi(&self, sim: &Simulation, dof: &Col<f32>, dir: &Col<f32>) -> f32 {
+        let mut t = 1f32;
+        let accd = Accd {
+            s: self.s,
+            t_c: self.t_c,
+        };
+
+        for body in &sim.bodies {
+            match body {
+                Body::Affine() => todo!(),
+                Body::Soft() => todo!(),
+                Body::Springs(spbody, offset) => {
+                    for inode in 0..spbody.ndof / 2 {
+                        for edge in Boundary::edges() {
+                            let node = glm::vec2(dof[inode * 2], dof[inode * 2 + 1]);
+                            let node_dir = glm::vec2(dir[inode * 2], dir[inode * 2 + 1]);
+                            let index = ContactIndex {
+                                p: Some((inode * 2, inode * 2 + 1)),
+                                e: None,
+                            };
+                            let pair = ContactPair {
+                                point: node,
+                                edge,
+                                index,
+                            };
+                            let dir = ContactPairDir {
+                                point: node_dir,
+                                edge: (glm::vec2(0f32, 0f32), glm::vec2(0f32, 0f32)),
+                                index,
+                            };
+
+                            // compute toi for single pair
+                            t = t.min(accd.toi(&pair, &dir));
+                        }
+                    }
+                }
+            }
+        }
+
+        todo!()
     }
 }

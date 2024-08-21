@@ -14,10 +14,10 @@ use crate::{
 use super::{
     body::{
         body::{Body, GenericBody, Ip},
-        springsbody::SpringsBodyIp,
+        springsbody::{SpringsBody, SpringsBodyIp},
     },
-    solver::frame::NewtonFrame,
-    solver::newton::NewtonSolver,
+    contact::contact::{ContactIndex, ContactPairIp},
+    solver::{frame::NewtonFrame, newton::NewtonSolver},
     utils::hess::Hess,
 };
 
@@ -74,18 +74,28 @@ impl Boundary {
         ]
     }
 
-    // pub fn collect_collision_pair_with_boundary(
-    //     p: &glm::Vec2,
-    //     pairs: &mut Vec<ContactPair>,
-    //     dhat: f32,
-    // ) {
-    //     for edge in Boundary::edges() {
-    //         let pair = ContactPair { edge, point: *p };
-    //         if pair.distance() < dhat {
-    //             pairs.push(pair);
-    //         }
-    //     }
-    // }
+    pub fn collect_contact_pairs_springbody_with_boundary(
+        spbody: &SpringsBody,
+        offset: usize,
+        dof: &Col<f32>,
+        dhat: f32,
+        pairs: &mut Vec<ContactPair>,
+    ) {
+        for edge in Boundary::edges() {
+            for inode in 0..spbody.ndof / 2 {
+                let point = glm::vec2(dof[inode * 2], dof[inode * 2 + 1]);
+                let pair = ContactPair {
+                    edge,
+                    point,
+                    index: ContactIndex {
+                        p: Some((inode * 2, inode * 2 + 1)),
+                        e: None,
+                    },
+                };
+                pairs.push(pair);
+            }
+        }
+    }
 }
 
 pub struct Simulation {
@@ -95,6 +105,7 @@ pub struct Simulation {
 
     // instantiate all IPs, hardcode is OK
     pub springsbody_ip: SpringsBodyIp,
+    pub contact_ip: ContactPairIp,
 }
 
 impl Simulation {
@@ -126,6 +137,7 @@ impl Simulation {
             dof: Col::<f32>::zeros(ndof_accumulated),
             bodies,
             springsbody_ip: SpringsBodyIp::new(run_config),
+            contact_ip: ContactPairIp::new(run_config),
         }
     }
 
@@ -177,7 +189,7 @@ impl Simulation {
         max_linesearch_step: u32,
         tau: f32,
         beta: f32,
-        dhat: f32,
+        s: f32,
     ) {
         println!("step start!");
         let dof_init = self.init_dof();
@@ -202,7 +214,7 @@ impl Simulation {
             max_linesearch_step,
             tau,
             beta,
-            dhat,
+            s,
         }
         .run(self, dof_init);
 
