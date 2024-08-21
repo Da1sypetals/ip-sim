@@ -193,6 +193,7 @@ impl Simulation {
         tau: f32,
         beta: f32,
         s: f32,
+        accd_max_iter: u32,
     ) {
         println!("step start!");
         let dof_init = self.init_dof();
@@ -218,6 +219,7 @@ impl Simulation {
             tau,
             beta,
             s,
+            accd_max_iter,
         }
         .run(self, dof_init);
 

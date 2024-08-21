@@ -12,7 +12,7 @@
                 // g
                 "9.8",
                 // max_iters
-                "5000",
+                "500",
                 // tol
                 "0.001",
                 // max_linesearch_step
@@ -25,6 +25,8 @@
                 "0.001",
                 // s (typically 0.1 or 0.2)
                 "0.1",
+                // accd_max_iter
+                "80",
                 // nonstop
                 "false",
             ],

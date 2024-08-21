@@ -152,28 +152,18 @@ impl ContactPair {
         // Check if the point is closest to the start of the edge
         if ab.dot(&ap) <= 0.0 {
             let ap_norm = ap.norm();
-            g_edge_a = -ap / ap_norm;
             g_point = ap / ap_norm;
+            g_edge_a = -ap / ap_norm;
         }
         // Check if the point is closest to the end of the edge
         else if ab.dot(&bp) >= 0.0 {
             let bp_norm = bp.norm();
-            g_edge_b = -bp / bp_norm;
             g_point = bp / bp_norm;
+            g_edge_b = -bp / bp_norm;
         }
         // The point is closest to the edge itself
         else {
-            let ap_proj_on_ab = ap.dot(&ab) / ab.norm_squared();
-            let proj_point = a + ap_proj_on_ab * ab;
-            let d = p - proj_point;
-            let d_norm = d.norm();
-
-            let g_proj_point = -d / d_norm;
-            let g_ap_proj_on_ab = g_proj_point.dot(&ab);
-
-            g_edge_a = g_proj_point - g_ap_proj_on_ab * ab / ab.norm_squared();
-            g_edge_b = g_ap_proj_on_ab * ab / ab.norm_squared();
-            g_point = -g_proj_point;
+            todo!()
         }
 
         ContactGrad {
@@ -198,140 +188,73 @@ impl ContactPair {
         // Check if the point is closest to the start of the edge
         if ab.dot(&ap) <= 0.0 {
             let ap_norm = ap.norm();
-            let ap_norm_inv = 1.0 / ap_norm;
-            let ap_normalized = ap * ap_norm_inv;
+            let ap_norm_inv_3 = ap_norm.powi(3);
 
             // Hessian for point
-            res.add_elem(
-                0,
-                0,
-                ap_norm_inv * (1.0 - ap_normalized.x * ap_normalized.x),
-            );
-            res.add_elem(0, 1, -ap_norm_inv * ap_normalized.x * ap_normalized.y);
-            res.add_elem(1, 0, -ap_norm_inv * ap_normalized.x * ap_normalized.y);
-            res.add_elem(
-                1,
-                1,
-                ap_norm_inv * (1.0 - ap_normalized.y * ap_normalized.y),
-            );
 
-            // Hessian for edge start
-            res.add_elem(
-                2,
-                2,
-                ap_norm_inv * (1.0 - ap_normalized.x * ap_normalized.x),
-            );
-            res.add_elem(2, 3, -ap_norm_inv * ap_normalized.x * ap_normalized.y);
-            res.add_elem(3, 2, -ap_norm_inv * ap_normalized.x * ap_normalized.y);
-            res.add_elem(
-                3,
-                3,
-                ap_norm_inv * (1.0 - ap_normalized.y * ap_normalized.y),
-            );
+            let subhess_00 = ap.y * ap.y * ap_norm_inv_3;
+            let subhess_01 = -ap.x * ap.y * ap_norm_inv_3;
+            let subhess_11 = ap.x * ap.x * ap_norm_inv_3;
+            // subhess 0
+            res.add_elem(0, 0, subhess_00);
+            res.add_elem(0, 1, subhess_01);
+            res.add_elem(1, 0, subhess_01);
+            res.add_elem(1, 1, subhess_11);
 
-            // Cross terms
-            res.add_elem(
-                0,
-                2,
-                -ap_norm_inv * (1.0 - ap_normalized.x * ap_normalized.x),
-            );
-            res.add_elem(0, 3, ap_norm_inv * ap_normalized.x * ap_normalized.y);
-            res.add_elem(1, 2, ap_norm_inv * ap_normalized.x * ap_normalized.y);
-            res.add_elem(
-                1,
-                3,
-                -ap_norm_inv * (1.0 - ap_normalized.y * ap_normalized.y),
-            );
-        }
-        // Check if the point is closest to the end of the edge
-        else if ab.dot(&bp) >= 0.0 {
+            // subhess 1
+            res.add_elem(0, 2, -subhess_00);
+            res.add_elem(0, 3, -subhess_01);
+            res.add_elem(1, 2, -subhess_01);
+            res.add_elem(1, 3, -subhess_11);
+
+            // subhess 2
+            res.add_elem(2, 0, -subhess_00);
+            res.add_elem(2, 1, -subhess_01);
+            res.add_elem(3, 0, -subhess_01);
+            res.add_elem(3, 1, -subhess_11);
+
+            // subhess 0
+            res.add_elem(2, 2, subhess_00);
+            res.add_elem(2, 3, subhess_01);
+            res.add_elem(3, 2, subhess_01);
+            res.add_elem(3, 3, subhess_11);
+        } else if ab.dot(&bp) >= 0.0 {
             let bp_norm = bp.norm();
-            let bp_norm_inv = 1.0 / bp_norm;
-            let bp_normalized = bp * bp_norm_inv;
+            let bp_norm_inv_3 = bp_norm.powi(3);
 
             // Hessian for point
-            res.add_elem(
-                0,
-                0,
-                bp_norm_inv * (1.0 - bp_normalized.x * bp_normalized.x),
-            );
-            res.add_elem(0, 1, -bp_norm_inv * bp_normalized.x * bp_normalized.y);
-            res.add_elem(1, 0, -bp_norm_inv * bp_normalized.x * bp_normalized.y);
-            res.add_elem(
-                1,
-                1,
-                bp_norm_inv * (1.0 - bp_normalized.y * bp_normalized.y),
-            );
 
-            // Hessian for edge end
-            res.add_elem(
-                4,
-                4,
-                bp_norm_inv * (1.0 - bp_normalized.x * bp_normalized.x),
-            );
-            res.add_elem(4, 5, -bp_norm_inv * bp_normalized.x * bp_normalized.y);
-            res.add_elem(5, 4, -bp_norm_inv * bp_normalized.x * bp_normalized.y);
-            res.add_elem(
-                5,
-                5,
-                bp_norm_inv * (1.0 - bp_normalized.y * bp_normalized.y),
-            );
+            let subhess_00 = bp.y * bp.y * bp_norm_inv_3;
+            let subhess_01 = -bp.x * bp.y * bp_norm_inv_3;
+            let subhess_11 = bp.x * bp.x * bp_norm_inv_3;
+            // subhess 0
+            res.add_elem(0, 0, subhess_00);
+            res.add_elem(0, 1, subhess_01);
+            res.add_elem(1, 0, subhess_01);
+            res.add_elem(1, 1, subhess_11);
 
-            // Cross terms
-            res.add_elem(
-                0,
-                4,
-                -bp_norm_inv * (1.0 - bp_normalized.x * bp_normalized.x),
-            );
-            res.add_elem(0, 5, bp_norm_inv * bp_normalized.x * bp_normalized.y);
-            res.add_elem(1, 4, bp_norm_inv * bp_normalized.x * bp_normalized.y);
-            res.add_elem(
-                1,
-                5,
-                -bp_norm_inv * (1.0 - bp_normalized.y * bp_normalized.y),
-            );
+            // subhess 1
+            res.add_elem(0, 2, -subhess_00);
+            res.add_elem(0, 3, -subhess_01);
+            res.add_elem(1, 2, -subhess_01);
+            res.add_elem(1, 3, -subhess_11);
+
+            // subhess 2
+            res.add_elem(2, 0, -subhess_00);
+            res.add_elem(2, 1, -subhess_01);
+            res.add_elem(3, 0, -subhess_01);
+            res.add_elem(3, 1, -subhess_11);
+
+            // subhess 0
+            res.add_elem(2, 2, subhess_00);
+            res.add_elem(2, 3, subhess_01);
+            res.add_elem(3, 2, subhess_01);
+            res.add_elem(3, 3, subhess_11);
         }
         // The point is closest to the edge itself
         else {
-            let ap_proj_on_ab = ap.dot(&ab) / ab.norm_squared();
-            let proj_point = a + ap_proj_on_ab * ab;
-            let d = p - proj_point;
-            let d_norm = d.norm();
-            let d_norm_inv = 1.0 / d_norm;
-            let d_normalized = d * d_norm_inv;
-
-            let ab_norm_squared_inv = 1.0 / ab.norm_squared();
-            let ab_normalized = ab * ab_norm_squared_inv;
-
-            // Hessian for point
-            res.add_elem(0, 0, d_norm_inv * (1.0 - d_normalized.x * d_normalized.x));
-            res.add_elem(0, 1, -d_norm_inv * d_normalized.x * d_normalized.y);
-            res.add_elem(1, 0, -d_norm_inv * d_normalized.x * d_normalized.y);
-            res.add_elem(1, 1, d_norm_inv * (1.0 - d_normalized.y * d_normalized.y));
-
-            // Hessian for edge start and end
-            res.add_elem(2, 2, d_norm_inv * (1.0 - d_normalized.x * d_normalized.x));
-            res.add_elem(2, 3, -d_norm_inv * d_normalized.x * d_normalized.y);
-            res.add_elem(3, 2, -d_norm_inv * d_normalized.x * d_normalized.y);
-            res.add_elem(3, 3, d_norm_inv * (1.0 - d_normalized.y * d_normalized.y));
-
-            res.add_elem(4, 4, d_norm_inv * (1.0 - d_normalized.x * d_normalized.x));
-            res.add_elem(4, 5, -d_norm_inv * d_normalized.x * d_normalized.y);
-            res.add_elem(5, 4, -d_norm_inv * d_normalized.x * d_normalized.y);
-            res.add_elem(5, 5, d_norm_inv * (1.0 - d_normalized.y * d_normalized.y));
-
-            // Cross terms
-            res.add_elem(0, 2, -d_norm_inv * (1.0 - d_normalized.x * d_normalized.x));
-            res.add_elem(0, 3, d_norm_inv * d_normalized.x * d_normalized.y);
-            res.add_elem(1, 2, d_norm_inv * d_normalized.x * d_normalized.y);
-            res.add_elem(1, 3, -d_norm_inv * (1.0 - d_normalized.y * d_normalized.y));
-
-            res.add_elem(0, 4, -d_norm_inv * (1.0 - d_normalized.x * d_normalized.x));
-            res.add_elem(0, 5, d_norm_inv * d_normalized.x * d_normalized.y);
-            res.add_elem(1, 4, d_norm_inv * d_normalized.x * d_normalized.y);
-            res.add_elem(1, 5, -d_norm_inv * (1.0 - d_normalized.y * d_normalized.y));
+            todo!()
         }
-
         res
     }
 }

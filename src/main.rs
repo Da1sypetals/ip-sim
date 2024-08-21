@@ -35,8 +35,10 @@ struct RunConfig {
 #[macroquad::main(window_conf)]
 async fn main() {
     let args: Vec<String> = env::args().collect();
-    if args.len() != 11 {
-        eprintln!("Usage: {} <dt> <g> <max_iters> <tol> <nonstop>", args[0]);
+    const num_params: usize = 12;
+    if args.len() != num_params {
+        eprintln!("Usage: {} ...", args[0]);
+        eprintln!("Expected {} params", num_params);
         eprintln!("Got params: {:?}", args);
         std::process::exit(1);
     }
@@ -50,7 +52,8 @@ async fn main() {
     let beta: f32 = args[7].parse().expect("Invalid f32 argument");
     let dhat: f32 = args[8].parse().expect("Invalid f32 argument");
     let s: f32 = args[9].parse().expect("Invalid f32 argument");
-    let nonstop: bool = args[10].parse().expect("Invalid bool argument");
+    let accd_max_iter: u32 = args[10].parse().expect("Invalid u32 argument");
+    let nonstop: bool = args[11].parse().expect("Invalid bool argument");
 
     let run_config = RunConfig { g, dt, dhat };
 
@@ -71,7 +74,15 @@ async fn main() {
         clear_background(BLACK);
 
         // step
-        sim.step_damped_newton_with_contact(max_iters, tol, max_linesearch_step, tau, beta, s);
+        sim.step_damped_newton_with_contact(
+            max_iters,
+            tol,
+            max_linesearch_step,
+            tau,
+            beta,
+            s,
+            accd_max_iter,
+        );
 
         // draw
         for body in &sim.bodies {

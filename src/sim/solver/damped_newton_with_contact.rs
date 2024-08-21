@@ -15,6 +15,7 @@ pub struct DampedNewtonSolverWithContact {
     pub tau: f32,  // line search step multiplier
     pub beta: f32, // armijo condition parameter
     pub s: f32,
+    pub accd_max_iter: u32,
 }
 
 impl DampedNewtonSolverWithContact {
@@ -154,7 +155,8 @@ impl DampedNewtonSolverWithContact {
             // dbg!(direction.transpose());
 
             // collision detection
-            let alpha_init = AccdMassive::new(self.s).toi(sim, &frame.dof, &direction);
+            let alpha_init =
+                AccdMassive::new(self.s, self.accd_max_iter).toi(sim, &frame.dof, &direction);
             // line search
             let alpha = self.line_search(sim, &frame, &direction, alpha_init);
 

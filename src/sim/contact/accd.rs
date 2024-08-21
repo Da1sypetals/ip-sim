@@ -16,11 +16,16 @@ pub struct ContactPairDir {
 pub struct Accd {
     pub s: f32,
     pub t_c: f32,
+    max_iter: u32,
 }
 
 impl Accd {
-    pub fn new(s: f32) -> Self {
-        Self { s, t_c: 1f32 }
+    pub fn new(s: f32, max_iter: u32) -> Self {
+        Self {
+            s,
+            t_c: 1f32,
+            max_iter,
+        }
     }
 
     /// See: https://ipc-sim.github.io/C-IPC/
@@ -51,7 +56,7 @@ impl Accd {
         let mut t = 0f32;
         let mut t_l = (1f32 - self.s) * d / l_p;
 
-        loop {
+        for _ in 0..self.max_iter {
             x.point += t_l * p.point;
             x.edge.0 += t_l * p.edge.0;
             x.edge.1 += t_l * p.edge.1;
@@ -75,11 +80,16 @@ impl Accd {
 pub struct AccdMassive {
     pub s: f32,
     pub t_c: f32,
+    pub max_iter: u32,
 }
 
 impl AccdMassive {
-    pub fn new(s: f32) -> Self {
-        Self { s, t_c: 1f32 }
+    pub fn new(s: f32, max_iter: u32) -> Self {
+        Self {
+            s,
+            t_c: 1f32,
+            max_iter,
+        }
     }
 
     /// Compute the `toi` for the whole simulation
@@ -90,6 +100,7 @@ impl AccdMassive {
         let accd = Accd {
             s: self.s,
             t_c: self.t_c,
+            max_iter: self.max_iter,
         };
 
         for body in &sim.bodies {
