@@ -1,4 +1,5 @@
 use faer::{linalg::svd::SvdParams, Col};
+use glm::sign;
 use nalgebra::{ArrayStorage, U6};
 
 use crate::{
@@ -163,7 +164,24 @@ impl ContactPair {
         }
         // The point is closest to the edge itself
         else {
-            todo!()
+            let ab_norm = ab.norm();
+            let ab_norm_3 = ab_norm.powi(3);
+
+            let cross = ab.x * ap.y - ap.x * ab.y;
+
+            g_point = glm::vec2(
+                -ab.y * cross.signum() / ab_norm,
+                ab.x * cross.signum() / ab_norm,
+            );
+            g_edge_a = glm::vec2(
+                ab.x * cross.abs() / ab_norm_3 - bp.y * cross.signum() / ab_norm,
+                ab.y * cross.abs() / ab_norm_3 + bp.x * cross.signum() / ab_norm,
+            );
+            // todo: g_edge_b
+            g_edge_b = glm::vec2(
+                -ab.x * cross.abs() / ab_norm_3 + ap.y * cross.signum() / ab_norm,
+                -ab.y * cross.abs() / ab_norm_3 - ap.x * cross.signum() / ab_norm,
+            );
         }
 
         ContactGrad {
@@ -253,7 +271,8 @@ impl ContactPair {
         }
         // The point is closest to the edge itself
         else {
-            todo!()
+            // do nothing for now
+            // todo!()
         }
         res
     }

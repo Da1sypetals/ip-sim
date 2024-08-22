@@ -89,7 +89,7 @@ impl Boundary {
                     edge,
                     point,
                     index: ContactIndex {
-                        p: Some((inode * 2, inode * 2 + 1)),
+                        p: Some((ix, iy)),
                         e: None,
                     },
                 };

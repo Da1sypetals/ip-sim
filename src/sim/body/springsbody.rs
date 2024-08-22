@@ -37,17 +37,109 @@ pub struct SpringsBody {
 impl SpringsBody {
     pub fn new(n: usize) -> Self {
         let ndof = n * 2;
-        let mut body = SpringsBody {
+        SpringsBody {
             ndof,
             x: Col::zeros(ndof),
             xhat: Col::zeros(ndof),
             xprev: Col::zeros(ndof),
             v: Col::zeros(ndof),
             constraints: Vec::new(),
-        };
-
-        body
+        }
     }
+
+    pub fn from_file_with_v0(path: &str) -> io::Result<Self> {
+        let file = File::open(Path::new(path))?;
+        let reader = BufReader::new(file);
+        let mut lines = reader.lines();
+
+        let mut nodes = Vec::new();
+        let mut velocities = Vec::new();
+        let mut constraints = Vec::new();
+        let mut k_value = 0.0; // Default k value
+
+        while let Some(line) = lines.next() {
+            let line = line?;
+            let line = line.trim();
+
+            if line.is_empty() {
+                continue; // Skip empty lines
+            }
+
+            if line.starts_with("!k") {
+                k_value = line.split_whitespace().nth(1).unwrap().parse().unwrap();
+            } else if line.starts_with("!node") {
+                while let Some(node_line) = lines.next() {
+                    let node_line = node_line?;
+                    let node_line = node_line.trim();
+                    if node_line.is_empty() || node_line.starts_with("!v0") {
+                        break;
+                    }
+                    let coords: Vec<f32> = node_line
+                        .split_whitespace()
+                        .map(|s| s.parse().unwrap())
+                        .collect();
+                    nodes.push((coords[0], coords[1]));
+                }
+            } else if line.starts_with("!v0") {
+                while let Some(v0_line) = lines.next() {
+                    let v0_line = v0_line?;
+                    let v0_line = v0_line.trim();
+                    if v0_line.is_empty() || v0_line.starts_with("!spring") {
+                        break;
+                    }
+                    let vels: Vec<f32> = v0_line
+                        .split_whitespace()
+                        .map(|s| s.parse().unwrap())
+                        .collect();
+                    velocities.push((vels[0], vels[1]));
+                }
+            } else if line.starts_with("!spring") {
+                while let Some(spring_line) = lines.next() {
+                    let spring_line = spring_line?;
+                    let spring_line = spring_line.trim();
+                    if spring_line.is_empty() || spring_line.starts_with("!end") {
+                        break;
+                    }
+                    let indices: Vec<usize> = spring_line
+                        .split_whitespace()
+                        .map(|s| s.parse().unwrap())
+                        .collect();
+                    let i1 = indices[0];
+                    let i2 = indices[1];
+                    let (x1, y1) = nodes[i1];
+                    let (x2, y2) = nodes[i2];
+                    let l0 = ((x2 - x1).powi(2) + (y2 - y1).powi(2)).sqrt();
+                    let constraint = Constraint {
+                        i1,
+                        i2,
+                        k: k_value,
+                        l0,
+                    };
+                    constraints.push(constraint);
+                }
+            } else if line.starts_with("!end") {
+                break;
+            }
+        }
+
+        let n = nodes.len();
+        let mut body = SpringsBody::new(n);
+
+        for (i, &(x, y)) in nodes.iter().enumerate() {
+            body.x[(i * 2)] = x;
+            body.x[(i * 2) + 1] = y;
+        }
+
+        for (i, &(vx, vy)) in velocities.iter().enumerate() {
+            body.v[(i * 2)] = vx;
+            body.v[(i * 2) + 1] = vy;
+        }
+
+        body.constraints = constraints;
+
+        Ok(body)
+    }
+
     pub fn from_file(path: &str) -> io::Result<Self> {
         let file = File::open(Path::new(path))?;
         let reader = BufReader::new(file);
