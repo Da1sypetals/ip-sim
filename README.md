@@ -7,6 +7,6 @@ IP(Incremental-potential)-based simulation written in rust.
 - Contact-IP entrance: `damped_newton_with_contact.rs` function `fill_frame`
 
 ## TODO:
-- Hessian for contact IP energy (case 3);git 
+- Hessian for contact IP energy (case 3);
 - Friction.
 - Body-body collision.
