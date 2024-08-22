@@ -1,7 +1,12 @@
 use super::frame::NewtonFrame;
 use crate::sim::{
-    body::body::{Body, Ip},
-    contact::{accd::AccdMassive, contact::ContactPair},
+    body::{
+        body::{Body, Ip},
+        springsbody::SpringsBody,
+    },
+    contact::{
+        accd::AccdMassive, contact::ContactPair, inter_body::collect_interbody_contact_pairs,
+    },
     sim::{Boundary, Simulation},
     utils::hess::Hess,
 };
@@ -109,6 +114,8 @@ impl DampedNewtonSolverWithContact {
     /// - Return all contact pairs
     pub fn find_contact_pairs(frame: &NewtonFrame, sim: &mut Simulation) -> Vec<ContactPair> {
         let mut contact_pairs = Vec::new();
+
+        // 1. contact with boundaries
         for body in &sim.bodies {
             // use raw dof here
             match body {
@@ -117,7 +124,6 @@ impl DampedNewtonSolverWithContact {
                 Body::Springs(spbody, offset) => {
                     let n: usize = spbody.ndof / 2;
                     for _ in 0..n {
-                        // todo: add collision pair with static object: boundary
                         Boundary::collect_contact_pairs_springbody_with_boundary(
                             spbody,
                             *offset,
@@ -129,6 +135,25 @@ impl DampedNewtonSolverWithContact {
                 }
             }
         }
+
+        // 2. inter-body contact pairs
+
+        for i in 0..sim.bodies.len() {
+            for j in i + 1..sim.bodies.len() {
+                println!("{}, {}", i, j);
+                let b1 = &sim.bodies[i];
+                let b2 = &sim.bodies[j];
+
+                collect_interbody_contact_pairs(
+                    b1,
+                    b2,
+                    &frame.dof,
+                    &mut contact_pairs,
+                    sim.contact_ip.run_config.dhat,
+                );
+            }
+        }
+
         contact_pairs
     }
 

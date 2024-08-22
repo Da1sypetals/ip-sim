@@ -8,6 +8,7 @@ IP(Incremental-potential)-based simulation written in rust.
 - There are artifacts when two points collide (compared to point-edge collision).
 
 ## TODO:
+- Move `struct Boundary` to a file in folder `contact`;
 - Hessian for contact IP energy (case 3);
-- Friction.
+- Friction;
 - Body-body collision.
