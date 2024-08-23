@@ -29,7 +29,12 @@
                 "80",
                 // nonstop
                 "false",
+                // save_frames
+                "true",
+                // save_path
+                "${workspaceFolder}/simsave_0"
             ],
+            // currently working in folder: 
             "cwd": "${workspaceFolder}",
             "preLaunchTask": "cargo build",
         }

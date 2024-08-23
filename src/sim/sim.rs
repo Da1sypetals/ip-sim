@@ -1,6 +1,7 @@
 use faer::Col;
 
 use crate::{
+    export::base::VisFrameVec,
     sim::{
         contact::contact::ContactPair,
         solver::{
@@ -21,7 +22,6 @@ use super::{
     utils::hess::Hess,
 };
 
-
 pub struct Simulation {
     pub bodies: Vec<Body>,
     pub dof: Col<f32>,
@@ -30,6 +30,9 @@ pub struct Simulation {
     // instantiate all IPs, hardcode is OK
     pub springsbody_ip: SpringsBodyIp,
     pub contact_ip: ContactPairIp,
+
+    // serialization related
+    pub vis_frames: VisFrameVec,
 }
 
 impl Simulation {
@@ -62,6 +65,7 @@ impl Simulation {
             bodies,
             springsbody_ip: SpringsBodyIp::new(run_config),
             contact_ip: ContactPairIp::new(run_config),
+            vis_frames: VisFrameVec { frames: Vec::new() },
         }
     }
 
