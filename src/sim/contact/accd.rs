@@ -1,9 +1,7 @@
-use super::super::body::body::Body;
-use crate::sim::{
-    sim::{Boundary, Simulation},
-    utils::misc::dof_index,
-};
+use super::{super::body::body::Body, boundary::Boundary};
+use crate::sim::{sim::Simulation, utils::misc::dof_index};
 use faer::Col;
+
 
 use super::contact::{ContactIndex, ContactPair};
 pub struct ContactPairDir {

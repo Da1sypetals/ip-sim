@@ -1,13 +1,10 @@
 use super::frame::NewtonFrame;
 use crate::sim::{
-    body::{
-        body::{Body, Ip},
-        springsbody::SpringsBody,
-    },
+    body::body::{Body, Ip},
     contact::{
-        accd::AccdMassive, contact::ContactPair, inter_body::collect_interbody_contact_pairs,
+        accd::AccdMassive, boundary::Boundary, contact::ContactPair, inter_body::collect_interbody_contact_pairs
     },
-    sim::{Boundary, Simulation},
+    sim::Simulation,
     utils::hess::Hess,
 };
 use faer::{solvers::SpSolver, Col};
