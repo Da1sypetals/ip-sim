@@ -1,16 +1,49 @@
-use super::{super::body::body::Body, boundary::Boundary};
+use super::{
+    super::body::body::Body,
+    affine_contact::{ContactElem, ContactNode},
+    boundary::Boundary,
+};
 use crate::sim::{sim::Simulation, utils::misc::dof_index};
 use faer::Col;
 
-
-use super::contact::{ContactIndex, ContactPair};
-pub struct ContactPairDir {
-    pub edge: (glm::Vec2, glm::Vec2),
-    pub point: glm::Vec2,
-
-    pub index: ContactIndex,
+#[derive(Clone)]
+pub struct ContactPos {
+    pub p: glm::Vec2,
+    pub e: (glm::Vec2, glm::Vec2),
 }
 
+impl ContactPos {
+    pub fn distance(&self) -> f32 {
+        let p = self.p;
+        let (a, b) = (&self.e.0, &self.e.1);
+
+        let ab = b - a;
+        let ap = p - a;
+        let bp = p - b;
+
+        // Check if the point is closest to the start of the edge
+        if ab.dot(&ap) <= 0.0 {
+            return ap.norm();
+        }
+
+        // Check if the point is closest to the end of the edge
+        if ab.dot(&bp) >= 0.0 {
+            return bp.norm();
+        }
+
+        // The point is closest to the edge itself
+        let ap_proj_on_ab = ap.dot(&ab) / ab.norm_squared();
+        let proj_point = a + ap_proj_on_ab * ab;
+        (p - proj_point).norm()
+    }
+}
+
+pub struct ContactDir {
+    pub p: glm::Vec2,
+    pub e: (glm::Vec2, glm::Vec2),
+}
+
+/// Erases **dof-index** info, keep only position info
 pub struct Accd {
     pub s: f32,
     pub t_c: f32,
@@ -30,19 +63,18 @@ impl Accd {
     /// - currently `xi` is not supported
     pub fn toi(
         &self,
-        pair: &ContactPair,   // x
-        dir: &ContactPairDir, // p
+        cpos: &ContactPos, // x
+        cdir: &ContactDir, // p
     ) -> f32 {
-        let pbar = (dir.point + dir.edge.0 + dir.edge.1) / 3f32;
+        let pbar = (cdir.p + cdir.e.0 + cdir.e.1) / 3f32;
 
-        let mut x = pair.clone();
-        let p = ContactPairDir {
-            point: dir.point - pbar,
-            edge: (dir.edge.0 - pbar, dir.edge.1 - pbar),
-            index: pair.index,
+        let mut x = cpos.clone();
+        let p = ContactDir {
+            p: cdir.p - pbar,
+            e: (cdir.e.0 - pbar, cdir.e.1 - pbar),
         };
 
-        let l_p = p.point.magnitude() + p.edge.0.magnitude().max(p.edge.1.magnitude());
+        let l_p = p.p.magnitude() + p.e.0.magnitude().max(p.e.1.magnitude());
         if l_p == 0f32 {
             return 1f32;
         }
@@ -55,9 +87,9 @@ impl Accd {
         let mut t_l = (1f32 - self.s) * d / l_p;
 
         for _ in 0..self.max_iter {
-            x.point += t_l * p.point;
-            x.edge.0 += t_l * p.edge.0;
-            x.edge.1 += t_l * p.edge.1;
+            x.p += t_l * p.p;
+            x.e.0 += t_l * p.e.0;
+            x.e.1 += t_l * p.e.1;
 
             let d = x.distance();
             if t > 0f32 && d < g {
@@ -112,29 +144,21 @@ impl AccdMassive {
                         for edge in Boundary::edges() {
                             let node = glm::vec2(dof[ix], dof[iy]);
                             let node_dir = glm::vec2(dir[ix], dir[iy]);
-                            let index = ContactIndex {
-                                p: Some((inode * 2, inode * 2 + 1)),
-                                e: None,
-                            };
-                            let cpair = ContactPair {
-                                point: node,
-                                edge,
-                                index,
-                            };
-                            let cdir = ContactPairDir {
-                                point: node_dir,
-                                edge: (glm::vec2(0f32, 0f32), glm::vec2(0f32, 0f32)),
-                                index,
+                            let cpos = ContactPos { p: node, e: edge };
+                            let cdir = ContactDir {
+                                p: node_dir,
+                                e: (glm::vec2(0f32, 0f32), glm::vec2(0f32, 0f32)),
                             };
 
                             // compute toi for single pair
-                            t = t.min(accd.toi(&cpair, &cdir));
+                            t = t.min(accd.toi(&cpos, &cdir));
                         }
                     }
                 }
             }
         }
 
+        let mut cnt = 0;
         // 2. springbody inter-body
         for i in 0..sim.bodies.len() {
             for j in i + 1..sim.bodies.len() {
@@ -145,67 +169,59 @@ impl AccdMassive {
                         // p1 collide with e2
                         for ip in 0..spb1.ndof / 2 {
                             for c in &spb2.constraints {
+                                cnt += 1;
                                 let (ipx, ipy) = dof_index(ip, *off1);
                                 let (ie1x, ie1y) = dof_index(c.i1, *off2);
                                 let (ie2x, ie2y) = dof_index(c.i2, *off2);
                                 // pairs and dirs
-                                let cpair = ContactPair {
-                                    point: glm::vec2(dof[ipx], dof[ipy]),
-                                    edge: (
+                                let cpos = ContactPos {
+                                    p: glm::vec2(dof[ipx], dof[ipy]),
+                                    e: (
                                         glm::vec2(dof[ie1x], dof[ie1y]),
                                         glm::vec2(dof[ie2x], dof[ie2y]),
                                     ),
-                                    index: ContactIndex {
-                                        p: Some((ipx, ipy)),
-                                        e: Some(((ie1x, ie1y), (ie2x, ie2y))),
-                                    },
                                 };
-                                let cdir = ContactPairDir {
-                                    point: glm::vec2(dir[ipx], dir[ipy]),
-                                    edge: (
+                                let cdir = ContactDir {
+                                    p: glm::vec2(dir[ipx], dir[ipy]),
+                                    e: (
                                         glm::vec2(dir[ie1x], dir[ie1y]),
                                         glm::vec2(dir[ie2x], dir[ie2y]),
                                     ),
-                                    index: cpair.index,
                                 };
-                                t = t.min(accd.toi(&cpair, &cdir));
+                                t = t.min(accd.toi(&cpos, &cdir));
                             }
                         }
 
                         // p2 collide with e1
                         for ip in 0..spb2.ndof / 2 {
                             for c in &spb1.constraints {
+                                cnt += 1;
                                 let (ipx, ipy) = dof_index(ip, *off2);
                                 let (ie1x, ie1y) = dof_index(c.i1, *off1);
                                 let (ie2x, ie2y) = dof_index(c.i2, *off1);
                                 // pairs and dirs
-                                let cpair = ContactPair {
-                                    point: glm::vec2(dof[ipx], dof[ipy]),
-                                    edge: (
+                                let cpos = ContactPos {
+                                    p: glm::vec2(dof[ipx], dof[ipy]),
+                                    e: (
                                         glm::vec2(dof[ie1x], dof[ie1y]),
                                         glm::vec2(dof[ie2x], dof[ie2y]),
                                     ),
-                                    index: ContactIndex {
-                                        p: Some((ipx, ipy)),
-                                        e: Some(((ie1x, ie1y), (ie2x, ie2y))),
-                                    },
                                 };
-                                let cdir = ContactPairDir {
-                                    point: glm::vec2(dir[ipx], dir[ipy]),
-                                    edge: (
+                                let cdir = ContactDir {
+                                    p: glm::vec2(dir[ipx], dir[ipy]),
+                                    e: (
                                         glm::vec2(dir[ie1x], dir[ie1y]),
                                         glm::vec2(dir[ie2x], dir[ie2y]),
                                     ),
-                                    index: cpair.index,
                                 };
-                                t = t.min(accd.toi(&cpair, &cdir));
+                                t = t.min(accd.toi(&cpos, &cdir));
                             }
                         }
                     }
                 }
             }
         }
-
+        println!("pair count: {}", cnt);
         // todo!()
         t
     }

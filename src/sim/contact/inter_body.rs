@@ -1,4 +1,4 @@
-use super::contact::{ContactIndex, ContactPair};
+use super::affine_contact::{ContactElem, ContactNode};
 use crate::sim::{body::body::Body, utils::misc::dof_index};
 use faer::Col;
 
@@ -6,7 +6,7 @@ pub fn collect_interbody_contact_pairs(
     b1: &Body,
     b2: &Body,
     dof: &Col<f32>,
-    pairs: &mut Vec<ContactPair>,
+    pairs: &mut Vec<ContactElem>,
     dhat: f32,
 ) {
     if let Body::Springs(spb1, off1) = b1 {
@@ -17,16 +17,21 @@ pub fn collect_interbody_contact_pairs(
                     let (ipx, ipy) = dof_index(ip, *off1);
                     let (ie1x, ie1y) = dof_index(c.i1, *off2);
                     let (ie2x, ie2y) = dof_index(c.i2, *off2);
-                    let pair = ContactPair {
-                        point: glm::vec2(dof[ipx], dof[ipy]),
-                        edge: (
-                            glm::vec2(dof[ie1x], dof[ie1y]),
-                            glm::vec2(dof[ie2x], dof[ie2y]),
-                        ),
-                        index: ContactIndex {
-                            p: Some((ipx, ipy)),
-                            e: Some(((ie1x, ie1y), (ie2x, ie2y))),
+                    let pair = ContactElem {
+                        p: ContactNode::Node {
+                            p: glm::vec2(dof[ipx], dof[ipy]),
+                            index: (ipx, ipy),
                         },
+                        e: (
+                            ContactNode::Node {
+                                p: glm::vec2(dof[ie1x], dof[ie1y]),
+                                index: (ie1x, ie1y),
+                            },
+                            ContactNode::Node {
+                                p: glm::vec2(dof[ie2x], dof[ie2y]),
+                                index: (ie2x, ie2y),
+                            },
+                        ),
                     };
 
                     if pair.distance() < dhat {
@@ -41,16 +46,21 @@ pub fn collect_interbody_contact_pairs(
                     let (ipx, ipy) = dof_index(ip, *off2);
                     let (ie1x, ie1y) = dof_index(c.i1, *off1);
                     let (ie2x, ie2y) = dof_index(c.i2, *off1);
-                    let pair = ContactPair {
-                        point: glm::vec2(dof[ipx], dof[ipy]),
-                        edge: (
-                            glm::vec2(dof[ie1x], dof[ie1y]),
-                            glm::vec2(dof[ie2x], dof[ie2y]),
-                        ),
-                        index: ContactIndex {
-                            p: Some((ipx, ipy)),
-                            e: Some(((ie1x, ie1y), (ie2x, ie2y))),
+                    let pair = ContactElem {
+                        p: ContactNode::Node {
+                            p: glm::vec2(dof[ipx], dof[ipy]),
+                            index: (ipx, ipy),
                         },
+                        e: (
+                            ContactNode::Node {
+                                p: glm::vec2(dof[ie1x], dof[ie1y]),
+                                index: (ie1x, ie1y),
+                            },
+                            ContactNode::Node {
+                                p: glm::vec2(dof[ie2x], dof[ie2y]),
+                                index: (ie2x, ie2y),
+                            },
+                        ),
                     };
 
                     if pair.distance() < dhat {

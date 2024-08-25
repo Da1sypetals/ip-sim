@@ -11,7 +11,12 @@ IP(Incremental-potential)-based simulation written in rust.
     - Collision detection: refer to `inter_body.rs`.
 - There are artifacts when two points collide (compared to point-edge collision).
 
-## TODO:
+## Recent TODO:
+- replace `ContactPair` with `ContactElem` and run the previous program
+- grad and hess for the `Affine` variant in `ContactNode` (implement `ContactElem.distance_grad` and `distance_hess`)
+- Implement other affine body
+
+## Further TODO:
 - Hessian for contact IP energy (case 3);
 - Friction;
 - Implement affine body.

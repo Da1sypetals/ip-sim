@@ -1,8 +1,7 @@
+use crate::sim::body::springsbody::SpringsBody;
 use faer::Col;
 
-use crate::sim::{body::springsbody::SpringsBody, contact::contact::ContactPair};
-
-use super::contact::ContactIndex;
+use super::affine_contact::{ContactElem, ContactNode};
 
 pub struct Boundary;
 impl Boundary {
@@ -83,19 +82,24 @@ impl Boundary {
         offset: usize,
         dof: &Col<f32>,
         dhat: f32,
-        pairs: &mut Vec<ContactPair>,
+        pairs: &mut Vec<ContactElem>,
     ) {
         for edge in Boundary::edges_extended() {
             for inode in 0..spbody.ndof / 2 {
                 let (ix, iy) = (offset + inode * 2, offset + inode * 2 + 1);
                 let point = glm::vec2(dof[ix], dof[iy]);
-                let pair = ContactPair {
-                    edge,
-                    point,
-                    index: ContactIndex {
-                        p: Some((ix, iy)),
-                        e: None,
+                let pair = ContactElem {
+                    p: ContactNode::Node {
+                        p: point,
+                        index: (ix, iy),
                     },
+                    e: (ContactNode::Static(edge.0), ContactNode::Static(edge.1)),
+                    // edge,
+                    // point,
+                    // index: ContactIndex {
+                    //     p: Some((ix, iy)),
+                    //     e: None,
+                    // },
                 };
                 if pair.distance() < dhat {
                     pairs.push(pair);

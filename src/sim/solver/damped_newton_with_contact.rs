@@ -1,11 +1,15 @@
 use super::frame::NewtonFrame;
-use crate::sim::{
-    body::body::{Body, Ip},
-    contact::{
-        accd::AccdMassive, boundary::Boundary, contact::ContactPair, inter_body::collect_interbody_contact_pairs
+use crate::{
+    sim::{
+        body::body::{Body, Ip},
+        contact::{
+            accd::AccdMassive, affine_contact::ContactElem, boundary::Boundary,
+            inter_body::collect_interbody_contact_pairs,
+        },
+        sim::Simulation,
+        utils::hess::Hess,
     },
-    sim::Simulation,
-    utils::hess::Hess,
+    RunConfig,
 };
 use faer::{solvers::SpSolver, Col};
 
@@ -30,7 +34,7 @@ impl DampedNewtonSolverWithContact {
         dir: &Col<f32>,
         alpha_init: f32,
     ) -> f32 {
-        print!("alpha_init = {}", alpha_init);
+        println!("alpha_init = {}", alpha_init);
         let mut alpha = alpha_init;
         for i_search in 0..self.max_linesearch_step {
             // 1. current frame
@@ -109,7 +113,7 @@ impl DampedNewtonSolverWithContact {
     /// # TODO!
     /// - Given configuration
     /// - Return all contact pairs
-    pub fn find_contact_pairs(frame: &NewtonFrame, sim: &mut Simulation) -> Vec<ContactPair> {
+    pub fn find_contact_pairs(frame: &NewtonFrame, sim: &mut Simulation) -> Vec<ContactElem> {
         let mut contact_pairs = Vec::new();
 
         // 1. contact with boundaries
@@ -134,10 +138,9 @@ impl DampedNewtonSolverWithContact {
         }
 
         // 2. inter-body contact pairs
-
         for i in 0..sim.bodies.len() {
             for j in i + 1..sim.bodies.len() {
-                println!("{}, {}", i, j);
+                // println!("{}, {}", i, j);
                 let b1 = &sim.bodies[i];
                 let b2 = &sim.bodies[j];
 
@@ -171,10 +174,11 @@ impl DampedNewtonSolverWithContact {
             // find contact pairs which contributes to IP
             // let contact_pairs = self.find_contact_pairs(&frame, sim);
             // fill grad and hess of search starting frame
-            DampedNewtonSolverWithContact::fill_frame(sim, &mut frame, true, true, true);
+            // DampedNewtonSolverWithContact::fill_frame(sim, &mut frame, true, true, true);
+            DampedNewtonSolverWithContact::fill_frame(sim, &mut frame, true, true, false);
 
-            let direction = frame.hess.lu().solve(-&frame.grad);
-            // dbg!(direction.transpose());
+            // let direction = frame.hess.lu().solve(-&frame.grad);
+            let direction = (-&frame.grad).clone();
 
             // collision detection
             let alpha_init =

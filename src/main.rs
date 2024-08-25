@@ -1,3 +1,4 @@
+extern crate libc;
 extern crate nalgebra_glm as glm;
 use draw::draw::Draw;
 use macroquad::prelude::*;

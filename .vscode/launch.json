@@ -26,13 +26,13 @@
                 // s (typically 0.1 or 0.2)
                 "0.1",
                 // accd_max_iter
-                "80",
+                "30",
                 // nonstop
                 "false",
                 // save_frames
-                "true",
+                "false",
                 // save_path
-                "${workspaceFolder}/simsave_0"
+                "${workspaceFolder}/simsave_1"
             ],
             // currently working in folder: 
             "cwd": "${workspaceFolder}",

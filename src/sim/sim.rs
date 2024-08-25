@@ -2,12 +2,9 @@ use faer::Col;
 
 use crate::{
     export::base::VisFrameVec,
-    sim::{
-        contact::contact::ContactPair,
-        solver::{
-            damped_newton::DampedNewtonSolver,
-            damped_newton_with_contact::DampedNewtonSolverWithContact,
-        },
+    sim::solver::{
+        damped_newton::DampedNewtonSolver,
+        damped_newton_with_contact::DampedNewtonSolverWithContact,
     },
     RunConfig,
 };
@@ -17,7 +14,7 @@ use super::{
         body::{Body, GenericBody, Ip},
         springsbody::{SpringsBody, SpringsBodyIp},
     },
-    contact::contact::{ContactIndex, ContactPairIp},
+    contact::affine_contact::ContactElemIp,
     solver::{frame::NewtonFrame, newton::NewtonSolver},
     utils::hess::Hess,
 };
@@ -29,7 +26,7 @@ pub struct Simulation {
 
     // instantiate all IPs, hardcode is OK
     pub springsbody_ip: SpringsBodyIp,
-    pub contact_ip: ContactPairIp,
+    pub contact_ip: ContactElemIp,
 
     // serialization related
     pub vis_frames: VisFrameVec,
@@ -64,7 +61,7 @@ impl Simulation {
             dof: Col::<f32>::zeros(ndof_accumulated),
             bodies,
             springsbody_ip: SpringsBodyIp::new(run_config),
-            contact_ip: ContactPairIp::new(run_config),
+            contact_ip: ContactElemIp::new(run_config),
             vis_frames: VisFrameVec { frames: Vec::new() },
         }
     }
