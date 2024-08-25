@@ -13,6 +13,10 @@ IP(Incremental-potential)-based simulation written in rust.
 
 ## Recent TODO:
 - replace `ContactPair` with `ContactElem` and run the previous program
+    - refactor done, but penetration bugs persists.
+    - most likely due to :
+        - ACCD bug
+        - grad computation bug
 - grad and hess for the `Affine` variant in `ContactNode` (implement `ContactElem.distance_grad` and `distance_hess`)
 - Implement other affine body
 
