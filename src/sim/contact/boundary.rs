@@ -94,12 +94,6 @@ impl Boundary {
                         index: (ix, iy),
                     },
                     e: (ContactNode::Static(edge.0), ContactNode::Static(edge.1)),
-                    // edge,
-                    // point,
-                    // index: ContactIndex {
-                    //     p: Some((ix, iy)),
-                    //     e: None,
-                    // },
                 };
                 if pair.distance() < dhat {
                     pairs.push(pair);

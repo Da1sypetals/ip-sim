@@ -12,3 +12,4 @@ faer = "0.18"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 libc = "0.2.158"
+chrono = "0.4.38"

@@ -30,9 +30,7 @@
                 // nonstop
                 "false",
                 // save_frames
-                "false",
-                // save_path
-                "${workspaceFolder}/simsave_1"
+                "true",
             ],
             // currently working in folder: 
             "cwd": "${workspaceFolder}",

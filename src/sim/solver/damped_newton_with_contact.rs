@@ -174,11 +174,11 @@ impl DampedNewtonSolverWithContact {
             // find contact pairs which contributes to IP
             // let contact_pairs = self.find_contact_pairs(&frame, sim);
             // fill grad and hess of search starting frame
-            // DampedNewtonSolverWithContact::fill_frame(sim, &mut frame, true, true, true);
-            DampedNewtonSolverWithContact::fill_frame(sim, &mut frame, true, true, false);
+            DampedNewtonSolverWithContact::fill_frame(sim, &mut frame, true, true, true);
+            // DampedNewtonSolverWithContact::fill_frame(sim, &mut frame, true, true, false);
 
-            // let direction = frame.hess.lu().solve(-&frame.grad);
-            let direction = (-&frame.grad).clone();
+            let direction = frame.hess.lu().solve(-&frame.grad);
+            // let direction = -(frame.grad.clone());
 
             // collision detection
             let alpha_init =

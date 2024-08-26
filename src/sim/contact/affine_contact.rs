@@ -1,5 +1,4 @@
 use faer::Col;
-use nalgebra::Storage;
 use std::ops::{Index, IndexMut};
 
 use crate::{
@@ -10,7 +9,7 @@ use crate::{
     RunConfig,
 };
 
-use super::{accd::ContactPos, generated::dist_node::d_grad_p_node};
+use super::{accd::CcdPair, generated::dist_node::d_grad_p_node};
 
 pub enum ContactNodeGrad {
     Static(),
@@ -53,6 +52,7 @@ impl ContactNodeGrad {
     }
 }
 
+#[derive(Debug)]
 pub enum ContactNode {
     Static(glm::Vec2),
     /// node position
@@ -71,6 +71,14 @@ pub enum ContactNode {
 }
 
 impl ContactNode {
+    pub fn ndof_diff(&self) -> usize {
+        match self {
+            ContactNode::Static(_) => 0,
+            ContactNode::Node { p, index } => 2,
+            ContactNode::Affine { t, a, x0, index } => 6,
+        }
+    }
+
     pub fn ndof(&self) -> usize {
         match self {
             ContactNode::Static(_) => 2,
@@ -121,7 +129,7 @@ impl ContactElemHess {
     pub fn new(elem: &ContactElem) -> Self {
         let p = &elem.p;
         let e = &elem.e;
-        let nrows = p.ndof() + e.0.ndof() + e.1.ndof();
+        let nrows = p.ndof_diff() + e.0.ndof_diff() + e.1.ndof_diff();
 
         let mut indices = Vec::new();
         let pts = [&p, &e.0, &e.1];
@@ -257,6 +265,7 @@ impl ContactElemGrad {
     }
 }
 
+#[derive(Debug)]
 pub struct ContactElem {
     pub p: ContactNode,
     pub e: (ContactNode, ContactNode),
@@ -288,12 +297,13 @@ impl ContactElem {
     }
 
     pub fn distance_grad(&self) -> ContactElemGrad {
+        // the point and edge in the contact pair
         let p = self.p.pos();
         let (e0, e1) = (self.e.0.pos(), self.e.1.pos());
 
         let g_p = match self.p {
             ContactNode::Static(_) => todo!(),
-            ContactNode::Node { p, index } => ContactNodeGrad::Node {
+            ContactNode::Node { p: _, index } => ContactNodeGrad::Node {
                 p: d_grad_p_node(p, e0, e1),
                 index: index,
             },
@@ -302,20 +312,30 @@ impl ContactElem {
 
         let g_e0 = match self.e.0 {
             ContactNode::Static(_) => ContactNodeGrad::Static(),
-            ContactNode::Node { p, index } => ContactNodeGrad::Node {
+            ContactNode::Node { p: _, index } => ContactNodeGrad::Node {
                 p: d_grad_e0_node(p, e0, e1),
                 index: index,
             },
-            ContactNode::Affine { a, t, x0, index } => todo!(),
+            ContactNode::Affine {
+                a: _,
+                t: _,
+                x0: _,
+                index,
+            } => todo!(),
         };
 
         let g_e1 = match self.e.1 {
             ContactNode::Static(_) => ContactNodeGrad::Static(),
-            ContactNode::Node { p, index } => ContactNodeGrad::Node {
+            ContactNode::Node { p: _, index } => ContactNodeGrad::Node {
                 p: d_grad_e1_node(p, e0, e1),
                 index: index,
             },
-            ContactNode::Affine { a, t, x0, index } => todo!(),
+            ContactNode::Affine {
+                a: _,
+                t: _,
+                x0: _,
+                index,
+            } => todo!(),
         };
 
         ContactElemGrad {
@@ -328,7 +348,7 @@ impl ContactElem {
         let mut res = ContactElemHess::new(self);
 
         match (&self.p, &self.e) {
-            // All are nodes: hess.nrows = 6
+            // All are nodes: hess : 6x6
             (
                 ContactNode::Node { p, index: ip },
                 (ContactNode::Node { p: e0, index: ie0 }, ContactNode::Node { p: e1, index: ie1 }),
@@ -389,22 +409,22 @@ impl ContactElem {
                     res[(1, 1)] = subhess_11;
 
                     // subhess 1
-                    res[(0, 2)] = -subhess_00;
-                    res[(0, 3)] = -subhess_01;
-                    res[(1, 2)] = -subhess_01;
-                    res[(1, 3)] = -subhess_11;
+                    res[(0, 4)] = -subhess_00;
+                    res[(0, 5)] = -subhess_01;
+                    res[(1, 4)] = -subhess_01;
+                    res[(1, 5)] = -subhess_11;
 
                     // subhess 2
-                    res[(2, 0)] = -subhess_00;
-                    res[(2, 1)] = -subhess_01;
-                    res[(3, 0)] = -subhess_01;
-                    res[(3, 1)] = -subhess_11;
+                    res[(4, 0)] = -subhess_00;
+                    res[(4, 1)] = -subhess_01;
+                    res[(5, 0)] = -subhess_01;
+                    res[(5, 1)] = -subhess_11;
 
                     // subhess 3
-                    res[(2, 2)] = subhess_00;
-                    res[(2, 3)] = subhess_01;
-                    res[(3, 2)] = subhess_01;
-                    res[(3, 3)] = subhess_11;
+                    res[(4, 4)] = subhess_00;
+                    res[(4, 5)] = subhess_01;
+                    res[(5, 4)] = subhess_01;
+                    res[(5, 5)] = subhess_11;
                 }
                 // The point is closest to the edge itself
                 else {
@@ -413,6 +433,56 @@ impl ContactElem {
                 }
             }
 
+            // node point with static edge. hess: 2x2
+            (
+                ContactNode::Node { p, index: ip },
+                (ContactNode::Static(e0), ContactNode::Static(e1)),
+            ) => {
+                let p = *p;
+                let (a, b) = (*e0, *e1);
+
+                let ab = b - a;
+                let ap = p - a;
+                let bp = p - b;
+
+                // Check if the point is closest to the start of the edge
+                if ab.dot(&ap) <= 0.0 {
+                    let ap_norm = ap.norm();
+                    let ap_norm_inv_3 = ap_norm.powi(3);
+
+                    // Hessian for point
+                    let subhess_00 = ap.y * ap.y * ap_norm_inv_3;
+                    let subhess_01 = -ap.x * ap.y * ap_norm_inv_3;
+                    let subhess_11 = ap.x * ap.x * ap_norm_inv_3;
+                    // subhess 0
+                    res[(0, 0)] = subhess_00;
+                    res[(0, 1)] = subhess_01;
+                    res[(1, 0)] = subhess_01;
+                    res[(1, 1)] = subhess_11;
+                } else if ab.dot(&bp) >= 0.0 {
+                    let bp_norm = bp.norm();
+                    let bp_norm_inv_3 = bp_norm.powi(3);
+
+                    // Hessian for point
+                    let subhess_00 = bp.y * bp.y * bp_norm_inv_3;
+                    let subhess_01 = -bp.x * bp.y * bp_norm_inv_3;
+                    let subhess_11 = bp.x * bp.x * bp_norm_inv_3;
+                    // subhess 0
+                    res[(0, 0)] = subhess_00;
+                    res[(0, 1)] = subhess_01;
+                    res[(1, 0)] = subhess_01;
+                    res[(1, 1)] = subhess_11;
+                }
+                // The point is closest to the edge itself
+                else {
+                    // do nothing for now
+                    // todo!()
+                }
+            }
+
+            // no hess
+            (ContactNode::Static(_), (ContactNode::Static(_), ContactNode::Static(_))) => (),
+
             _ => (),
         }
         res
@@ -420,8 +490,8 @@ impl ContactElem {
 }
 
 impl ContactElem {
-    pub fn pos(&self) -> ContactPos {
-        ContactPos {
+    pub fn pos(&self) -> CcdPair {
+        CcdPair {
             p: self.p.pos(),
             e: (self.e.0.pos(), self.e.1.pos()),
         }
@@ -467,10 +537,19 @@ impl ContactElemIp {
 
         let d_grad = body.distance_grad().assemble();
         let d_hess = body.distance_hess();
+
+        // dbg!(&body);
+        // dbg!(&d_grad);
+        // dbg!(&d_grad * d_grad.transpose());
+        // dbg!(&d_hess.storage);
+
         let hess_raw =
             faer::scale(diff2) * &d_grad * d_grad.transpose() + faer::scale(diff1) * d_hess.storage;
         // hess projection
-        let spd_hess_raw = hess_spd_proj(&hess_raw);
+        // let spd_hess_raw = hess_spd_proj(&hess_raw);
+        // dbg!(&hess_raw);
+        let spd_hess_raw = hess_raw.clone();
+
         let ip_hess = ContactElemHess {
             indices: d_hess.indices,
             storage: spd_hess_raw,

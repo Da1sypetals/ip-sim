@@ -1,6 +1,8 @@
 extern crate libc;
 extern crate nalgebra_glm as glm;
+use chrono::prelude::*;
 use draw::draw::Draw;
+use export::save::Save;
 use macroquad::prelude::*;
 use sim::body::body::GenericBody;
 use sim::body::springsbody::SpringsBody;
@@ -12,6 +14,12 @@ use std::path::Path;
 mod draw;
 mod export;
 mod sim;
+
+fn get_timestamp() -> String {
+    let now: DateTime<Local> = Local::now();
+    let timestamp = now.format("%Y%m%d_%H_%M_%S").to_string();
+    timestamp
+}
 
 fn pause() {
     println!("Press Enter to continue...");
@@ -39,10 +47,10 @@ struct RunConfig {
 #[macroquad::main(window_conf)]
 async fn main() {
     let args: Vec<String> = env::args().collect();
-    const min_num_params: usize = 13;
-    if args.len() < min_num_params {
+    const num_params: usize = 13;
+    if args.len() != num_params {
         eprintln!("Usage: {} ...", args[0]);
-        eprintln!("Expected at least {} params", min_num_params);
+        eprintln!("Expected {} params", num_params);
         eprintln!("Got params: {:?}", args);
         std::process::exit(1);
     }
@@ -59,20 +67,10 @@ async fn main() {
     let accd_max_iter: u32 = args[10].parse().expect("Invalid u32 argument");
     let nonstop: bool = args[11].parse().expect("Invalid bool argument");
     let save_frames: bool = args[12].parse().expect("Invalid bool argument");
-    let save_path: String = args[13].parse().expect("Invalid path");
 
     // ###################### init saving folder ######################
-    let path = Path::new(&save_path);
-    // check if path is valid
-    if !path.is_dir() {
-        // try mkdir
-        match fs::create_dir(path) {
-            Ok(_) => println!("Successfully created directory: {}", save_path),
-            Err(e) => panic!("Failed to create directory: {}. Error: {}", save_path, e),
-        }
-    } else {
-        panic!("Directory already exists: {}", save_path);
-    }
+    let path_str = format!("simsave_{}", get_timestamp()); // get timestamp
+    let mut save = Save::new(save_frames, path_str);
 
     // ###################### create and init simulator ######################
     let run_config = RunConfig { g, dt, dhat };
@@ -118,21 +116,7 @@ async fn main() {
             pause();
         }
 
-        if save_frames {
-            // just panic if save fails
-            let filepath = path.join(Path::new(&format!("frame_{}", istep)));
-            let filename = filepath.to_str().unwrap();
-
-            sim.save(filename)
-                .expect(&format!("Saving frame {} failed!", istep));
-            // delete previous frames
-            for index in 0..istep {
-                let filepath = path.join(Path::new(&format!("frame_{}", index)));
-                if filepath.exists() {
-                    fs::remove_file(&filepath).expect(&format!("Failed to delete frame {}", index));
-                }
-            }
-        }
+        save.save(&sim);
 
         // dbg!(&sim.x);
         istep += 1;

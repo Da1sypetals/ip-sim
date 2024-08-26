@@ -4,15 +4,15 @@ use super::{
     boundary::Boundary,
 };
 use crate::sim::{sim::Simulation, utils::misc::dof_index};
-use faer::Col;
+use faer::{dbgf, Col};
 
-#[derive(Clone)]
-pub struct ContactPos {
+#[derive(Clone, Debug)]
+pub struct CcdPair {
     pub p: glm::Vec2,
     pub e: (glm::Vec2, glm::Vec2),
 }
 
-impl ContactPos {
+impl CcdPair {
     pub fn distance(&self) -> f32 {
         let p = self.p;
         let (a, b) = (&self.e.0, &self.e.1);
@@ -38,7 +38,8 @@ impl ContactPos {
     }
 }
 
-pub struct ContactDir {
+#[derive(Debug)]
+pub struct CcdDir {
     pub p: glm::Vec2,
     pub e: (glm::Vec2, glm::Vec2),
 }
@@ -63,13 +64,13 @@ impl Accd {
     /// - currently `xi` is not supported
     pub fn toi(
         &self,
-        cpos: &ContactPos, // x
-        cdir: &ContactDir, // p
+        cpos: &CcdPair, // x
+        cdir: &CcdDir,  // p
     ) -> f32 {
         let pbar = (cdir.p + cdir.e.0 + cdir.e.1) / 3f32;
 
         let mut x = cpos.clone();
-        let p = ContactDir {
+        let p = CcdDir {
             p: cdir.p - pbar,
             e: (cdir.e.0 - pbar, cdir.e.1 - pbar),
         };
@@ -141,14 +142,16 @@ impl AccdMassive {
                 Body::Springs(spbody, offset) => {
                     for inode in 0..spbody.ndof / 2 {
                         let (ix, iy) = dof_index(inode, *offset);
-                        for edge in Boundary::edges() {
+                        for edge in Boundary::edges_extended() {
                             let node = glm::vec2(dof[ix], dof[iy]);
                             let node_dir = glm::vec2(dir[ix], dir[iy]);
-                            let cpos = ContactPos { p: node, e: edge };
-                            let cdir = ContactDir {
+                            let cpos = CcdPair { p: node, e: edge };
+                            let cdir = CcdDir {
                                 p: node_dir,
                                 e: (glm::vec2(0f32, 0f32), glm::vec2(0f32, 0f32)),
                             };
+
+                            let toi = accd.toi(&cpos, &cdir);
 
                             // compute toi for single pair
                             t = t.min(accd.toi(&cpos, &cdir));
@@ -174,14 +177,14 @@ impl AccdMassive {
                                 let (ie1x, ie1y) = dof_index(c.i1, *off2);
                                 let (ie2x, ie2y) = dof_index(c.i2, *off2);
                                 // pairs and dirs
-                                let cpos = ContactPos {
+                                let cpos = CcdPair {
                                     p: glm::vec2(dof[ipx], dof[ipy]),
                                     e: (
                                         glm::vec2(dof[ie1x], dof[ie1y]),
                                         glm::vec2(dof[ie2x], dof[ie2y]),
                                     ),
                                 };
-                                let cdir = ContactDir {
+                                let cdir = CcdDir {
                                     p: glm::vec2(dir[ipx], dir[ipy]),
                                     e: (
                                         glm::vec2(dir[ie1x], dir[ie1y]),
@@ -200,14 +203,14 @@ impl AccdMassive {
                                 let (ie1x, ie1y) = dof_index(c.i1, *off1);
                                 let (ie2x, ie2y) = dof_index(c.i2, *off1);
                                 // pairs and dirs
-                                let cpos = ContactPos {
+                                let cpos = CcdPair {
                                     p: glm::vec2(dof[ipx], dof[ipy]),
                                     e: (
                                         glm::vec2(dof[ie1x], dof[ie1y]),
                                         glm::vec2(dof[ie2x], dof[ie2y]),
                                     ),
                                 };
-                                let cdir = ContactDir {
+                                let cdir = CcdDir {
                                     p: glm::vec2(dir[ipx], dir[ipy]),
                                     e: (
                                         glm::vec2(dir[ie1x], dir[ie1y]),
