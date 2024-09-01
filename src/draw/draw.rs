@@ -30,7 +30,15 @@ pub trait Draw {
 impl Draw for Body {
     fn draw(&self) {
         match self {
-            Body::Affine() => todo!(),
+            Body::Affine(ab, _) => {
+                for iv in 0..ab.nvert {
+                    draw_point(&ab.pos(&ab.q, iv));
+                }
+                for iv in 0..ab.nvert {
+                    let (i, j) = (iv, (iv + 1) % ab.nvert);
+                    draw_link(&ab.pos(&ab.q, i), &ab.pos(&ab.q, j));
+                }
+            }
             Body::Soft() => todo!(),
             Body::Springs(spbody, _) => {
                 let n = spbody.ndof / 2;

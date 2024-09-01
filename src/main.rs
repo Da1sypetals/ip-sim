@@ -4,9 +4,11 @@ use chrono::prelude::*;
 use draw::draw::Draw;
 use export::save::Save;
 use macroquad::prelude::*;
+use sim::body::affinebody::AffineBody;
 use sim::body::body::GenericBody;
 use sim::body::springsbody::SpringsBody;
 use sim::sim::Simulation;
+use sim::utils::polygon::Polygon;
 use std::env;
 use std::fs;
 use std::io::{self, Write};
@@ -37,7 +39,7 @@ fn window_conf() -> Conf {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 struct RunConfig {
     dt: f32,
     g: f32,
@@ -74,14 +76,20 @@ async fn main() {
 
     // ###################### create and init simulator ######################
     let run_config = RunConfig { g, dt, dhat };
+    dbg!(&run_config);
+    pause();
 
-    let spbody =
-        SpringsBody::from_file_with_v0("springs.spr").expect("Failed to read spring file!");
-    let spbody2 =
-        SpringsBody::from_file_with_v0("springs2.spr").expect("Failed to read spring file!");
+    // let spbody =
+    //     SpringsBody::from_file_with_v0("springs.spr").expect("Failed to read spring file!");
+    // let spbody2 =
+    //     SpringsBody::from_file_with_v0("springs2.spr").expect("Failed to read spring file!");
+    // let mut gen_bodies: Vec<GenericBody> = Vec::new();
+    // gen_bodies.push(GenericBody::Springs(spbody));
+    // gen_bodies.push(GenericBody::Springs(spbody2));
+
+    let ab = AffineBody::from_file("ab.poly").expect("Failed to read from affine body!");
     let mut gen_bodies: Vec<GenericBody> = Vec::new();
-    gen_bodies.push(GenericBody::Springs(spbody));
-    gen_bodies.push(GenericBody::Springs(spbody2));
+    gen_bodies.push(GenericBody::Affine(ab));
 
     let mut sim = Simulation::new(gen_bodies, &run_config);
 
@@ -90,6 +98,24 @@ async fn main() {
     let mut istep = 0;
     loop {
         clear_background(BLACK);
+
+        // draw
+        for body in &sim.bodies {
+            body.draw();
+        }
+
+        println!("Simulated frame {}!\n", istep);
+
+        save.save(&sim);
+
+        // dbg!(&sim.x);
+        istep += 1;
+
+        next_frame().await;
+
+        if !nonstop {
+            pause();
+        }
 
         // step
         sim.step_damped_newton_with_contact(
@@ -104,23 +130,5 @@ async fn main() {
         if save_frames {
             sim.export();
         }
-
-        // draw
-        for body in &sim.bodies {
-            body.draw();
-        }
-
-        println!("Simulated frame {}!\n", istep);
-
-        if !nonstop {
-            pause();
-        }
-
-        save.save(&sim);
-
-        // dbg!(&sim.x);
-        istep += 1;
-
-        next_frame().await
     }
 }

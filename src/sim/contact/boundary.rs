@@ -1,4 +1,10 @@
-use crate::sim::body::springsbody::SpringsBody;
+use crate::sim::{
+    body::{affinebody::AffineBody, springsbody::SpringsBody},
+    utils::{
+        affine_utils::interop::{AffineDof, InteropCol},
+        types::Vec6,
+    },
+};
 use faer::Col;
 
 use super::affine_contact::{ContactElem, ContactNode};
@@ -77,6 +83,39 @@ impl Boundary {
         ]
     }
 
+    /// contact pairs which dist < dhat
+    pub fn collect_contact_pairs_affinebody_with_boundary(
+        ab: &AffineBody,
+        offset: usize,
+        dof: &Col<f32>, // complete dof
+        dhat: f32,
+        pairs: &mut Vec<ContactElem>,
+    ) {
+        for edge in Boundary::edges_extended() {
+            for i in 0..ab.nvert {
+                let mut qcol = Col::<f32>::zeros(6);
+                qcol.copy_from(dof.as_ref().subrows(offset, 6));
+                let q = Vec6::from_col(dof);
+                let x = ab.pos(&q, i);
+
+                let pair = ContactElem {
+                    p: ContactNode::Affine {
+                        t: q.t_vec(),
+                        a: q.a_mat(),
+                        x0: ab.pos_init(i),
+                        index: AffineBody::index(offset),
+                    },
+                    e: (ContactNode::Static(edge.0), ContactNode::Static(edge.1)),
+                };
+
+                if pair.distance() < dhat {
+                    pairs.push(pair);
+                }
+            }
+        }
+    }
+
+    /// contact pairs which dist < dhat
     pub fn collect_contact_pairs_springbody_with_boundary(
         spbody: &SpringsBody,
         offset: usize,

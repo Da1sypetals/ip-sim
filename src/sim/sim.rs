@@ -11,12 +11,13 @@ use crate::{
 
 use super::{
     body::{
+        affinebody::AffineBodyIp,
         body::{Body, GenericBody, Ip},
         springsbody::{SpringsBody, SpringsBodyIp},
     },
     contact::affine_contact::ContactElemIp,
     solver::{frame::NewtonFrame, newton::NewtonSolver},
-    utils::hess::Hess,
+    utils::{affine_utils::interop::InteropCol, hess::Hess, types::Vec6},
 };
 
 pub struct Simulation {
@@ -27,6 +28,7 @@ pub struct Simulation {
     // instantiate all IPs, hardcode is OK
     pub springsbody_ip: SpringsBodyIp,
     pub contact_ip: ContactElemIp,
+    pub affinebody_ip: AffineBodyIp,
 
     // serialization related
     pub vis_frames: VisFrameVec,
@@ -42,12 +44,14 @@ impl Simulation {
         // count dof & set offset
         for gen_body in gen_bodies {
             let body: Body;
+            let offset = ndof_accumulated;
             match gen_body {
-                GenericBody::Affine() => todo!(),
+                GenericBody::Affine(ab) => {
+                    body = Body::Affine(ab, offset);
+                }
                 GenericBody::Soft() => todo!(),
                 GenericBody::Springs(spbody) => {
                     // offset = current dof added
-                    let offset = ndof_accumulated;
                     // accumulate ndof
                     body = Body::Springs(spbody, offset);
                 }
@@ -62,6 +66,7 @@ impl Simulation {
             bodies,
             springsbody_ip: SpringsBodyIp::new(run_config),
             contact_ip: ContactElemIp::new(run_config),
+            affinebody_ip: AffineBodyIp::new(run_config),
             vis_frames: VisFrameVec { frames: Vec::new() },
         }
     }
@@ -71,7 +76,12 @@ impl Simulation {
         let mut dof = Col::zeros(self.ndof);
         for body in &self.bodies {
             match body {
-                Body::Affine() => todo!(),
+                Body::Affine(ab, offset) => {
+                    for i in 0..6 {
+                        let idof = i + offset;
+                        dof[idof] = ab.q[i];
+                    }
+                }
                 Body::Soft() => todo!(),
                 Body::Springs(spbody, offset) => {
                     for i in 0..spbody.ndof {
@@ -89,7 +99,14 @@ impl Simulation {
     fn post_step(&mut self) {
         for (i, body) in self.bodies.iter_mut().enumerate() {
             match body {
-                Body::Affine() => todo!(),
+                Body::Affine(ab, offset) => {
+                    let mut q_col = Col::<f32>::zeros(6);
+                    q_col.copy_from(self.dof.as_ref().subrows(*offset, 6));
+                    let new_q = Vec6::from_col(&q_col);
+
+                    ab.dq = (new_q - ab.q) / self.affinebody_ip.rc.dt;
+                    ab.q = new_q;
+                }
                 Body::Soft() => todo!(),
                 Body::Springs(spbody, offset) => {
                     spbody.xprev.copy_from(&spbody.x);
@@ -99,6 +116,8 @@ impl Simulation {
 
                     // dof[0] = spbody.x[0];
                     // dof[1] = spbody.x[1];
+
+                    // update position and velocity
                     spbody.x.copy_from(&dof);
                     spbody.v = faer::scale(1f32 / self.springsbody_ip.run_cfg.dt)
                         * (&spbody.x - &spbody.xprev);
@@ -125,11 +144,9 @@ impl Simulation {
         // call `prepare` for all bodies
         for body in &mut self.bodies {
             match body {
-                Body::Affine() => todo!(),
+                Body::Affine(ab, _) => self.affinebody_ip.prepare(ab),
                 Body::Soft() => todo!(),
-                Body::Springs(spbody, _) => {
-                    self.springsbody_ip.prepare(spbody);
-                }
+                Body::Springs(spbody, _) => self.springsbody_ip.prepare(spbody),
             }
         }
 
@@ -152,6 +169,7 @@ impl Simulation {
         self.post_step();
     }
 
+    #[deprecated]
     pub fn step_damped_newton(
         &mut self,
         max_iters: u32,
@@ -160,6 +178,9 @@ impl Simulation {
         tau: f32,
         beta: f32,
     ) {
+        todo!()
+        /*
+
         println!("step start!");
         let dof_init = self.init_dof();
 
@@ -223,9 +244,15 @@ impl Simulation {
         println!("Optimized dof: {:?}", self.dof.transpose());
 
         self.post_step();
+
+         */
     }
 
+    #[deprecated]
     pub fn step_newton(&mut self, max_iters: u32, tol: f32) {
+        todo!()
+        /*
+
         println!("step start!");
         let dof_init = self.init_dof();
 
@@ -279,5 +306,8 @@ impl Simulation {
         println!("Optimized dof: {:?}", self.dof.transpose());
 
         self.post_step();
+
+
+         */
     }
 }

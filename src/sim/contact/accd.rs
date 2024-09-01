@@ -1,9 +1,12 @@
 use super::{
     super::body::body::Body,
     affine_contact::{ContactElem, ContactNode},
-    boundary::Boundary,
+    boundary::{self, Boundary},
 };
-use crate::sim::{sim::Simulation, utils::misc::dof_index};
+use crate::sim::{
+    sim::Simulation,
+    utils::{affine_utils::interop::InteropCol, misc::dof_index, types::Vec6},
+};
 use faer::{dbgf, Col};
 
 #[derive(Clone, Debug)]
@@ -124,8 +127,8 @@ impl AccdMassive {
     }
 
     /// Compute the `toi` for the whole simulation
-    /// - given current `dof` and line search `dir`
-    /// Currently only springbody and boundaries
+    /// - given current `dof` and line search `dir`.
+    /// Compute Ccd pair (not contact pair)
     pub fn toi(&self, sim: &Simulation, dof: &Col<f32>, dir: &Col<f32>) -> f32 {
         let mut t = 1f32;
         let accd = Accd {
@@ -134,24 +137,46 @@ impl AccdMassive {
             max_iter: self.max_iter,
         };
 
-        // 1. springbody and boundaries
+        // 1. bodies and boundaries
+        // - springsbody
+        // - affinebody
         for body in &sim.bodies {
             match body {
-                Body::Affine() => todo!(),
+                Body::Affine(ab, offset) => {
+                    // unique for each body
+                    let q = Vec6::from_dof(dof, *offset);
+                    let qdir = Vec6::from_dof(dir, *offset);
+                    for i in 0..ab.nvert {
+                        // unique for each vertex
+                        let p = ab.pos(&q, i);
+                        let pdir = ab.pos_delta(&q, &qdir, i);
+
+                        for edge in Boundary::edges_extended() {
+                            let cpos = CcdPair { p, e: edge };
+                            let cdir = CcdDir {
+                                p: pdir,
+                                e: (glm::Vec2::zeros(), glm::Vec2::zeros()),
+                            };
+
+                            t = t.min(accd.toi(&cpos, &cdir));
+                        }
+                    }
+                }
                 Body::Soft() => todo!(),
                 Body::Springs(spbody, offset) => {
                     for inode in 0..spbody.ndof / 2 {
                         let (ix, iy) = dof_index(inode, *offset);
+                        let node = glm::vec2(dof[ix], dof[iy]);
+                        let node_dir = glm::vec2(dir[ix], dir[iy]);
+
                         for edge in Boundary::edges_extended() {
-                            let node = glm::vec2(dof[ix], dof[iy]);
-                            let node_dir = glm::vec2(dir[ix], dir[iy]);
                             let cpos = CcdPair { p: node, e: edge };
                             let cdir = CcdDir {
                                 p: node_dir,
                                 e: (glm::vec2(0f32, 0f32), glm::vec2(0f32, 0f32)),
                             };
 
-                            let toi = accd.toi(&cpos, &cdir);
+                            // let toi = accd.toi(&cpos, &cdir);
 
                             // compute toi for single pair
                             t = t.min(accd.toi(&cpos, &cdir));
@@ -161,7 +186,6 @@ impl AccdMassive {
             }
         }
 
-        let mut cnt = 0;
         // 2. springbody inter-body
         for i in 0..sim.bodies.len() {
             for j in i + 1..sim.bodies.len() {
@@ -172,7 +196,6 @@ impl AccdMassive {
                         // p1 collide with e2
                         for ip in 0..spb1.ndof / 2 {
                             for c in &spb2.constraints {
-                                cnt += 1;
                                 let (ipx, ipy) = dof_index(ip, *off1);
                                 let (ie1x, ie1y) = dof_index(c.i1, *off2);
                                 let (ie2x, ie2y) = dof_index(c.i2, *off2);
@@ -198,7 +221,6 @@ impl AccdMassive {
                         // p2 collide with e1
                         for ip in 0..spb2.ndof / 2 {
                             for c in &spb1.constraints {
-                                cnt += 1;
                                 let (ipx, ipy) = dof_index(ip, *off2);
                                 let (ie1x, ie1y) = dof_index(c.i1, *off1);
                                 let (ie2x, ie2y) = dof_index(c.i2, *off1);
@@ -224,7 +246,6 @@ impl AccdMassive {
                 }
             }
         }
-        println!("pair count: {}", cnt);
         // todo!()
         t
     }

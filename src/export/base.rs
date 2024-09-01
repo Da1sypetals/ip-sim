@@ -33,14 +33,14 @@ impl Export for Simulation {
 impl Export for Body {
     fn export_nodes(&self) -> Vec<(f32, f32)> {
         match self {
-            Body::Affine() => todo!(),
+            Body::Affine(ab, _) => ab.export_nodes(),
             Body::Soft() => todo!(),
             Body::Springs(spbody, _) => spbody.export_nodes(),
         }
     }
     fn export_edges(&self) -> Vec<((f32, f32), (f32, f32))> {
         match self {
-            Body::Affine() => todo!(),
+            Body::Affine(ab, _) => ab.export_edges(),
             Body::Soft() => todo!(),
             Body::Springs(spbody, _) => spbody.export_edges(),
         }

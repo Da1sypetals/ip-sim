@@ -3,13 +3,16 @@ use std::ops::{Index, IndexMut};
 
 use crate::{
     sim::{
-        contact::generated::dist_node::{d_grad_e0_node, d_grad_e1_node},
-        utils::{hess::Hess, misc::hess_spd_proj},
+        contact::generated_interface::dist_node::{d_grad_e0_node, d_grad_e1_node},
+        utils::{affine_utils::interop::AffineDof, hess::Hess, misc::hess_spd_proj, types::Vec6},
     },
     RunConfig,
 };
 
-use super::{accd::CcdPair, generated::dist_node::d_grad_p_node};
+use super::{
+    accd::CcdPair,
+    generated_interface::{dist_affine::PointContactArg, dist_node::d_grad_p_node},
+};
 
 pub enum ContactNodeGrad {
     Static(),
@@ -74,8 +77,13 @@ impl ContactNode {
     pub fn ndof_diff(&self) -> usize {
         match self {
             ContactNode::Static(_) => 0,
-            ContactNode::Node { p, index } => 2,
-            ContactNode::Affine { t, a, x0, index } => 6,
+            ContactNode::Node { p: _, index: _ } => 2,
+            ContactNode::Affine {
+                t: _,
+                a: _,
+                x0: _,
+                index: _,
+            } => 6,
         }
     }
 
@@ -307,7 +315,22 @@ impl ContactElem {
                 p: d_grad_p_node(p, e0, e1),
                 index: index,
             },
-            ContactNode::Affine { a, t, x0, index } => todo!(),
+            ContactNode::Affine { a, t, x0, index } => {
+                let _grad = PointContactArg {
+                    u: e0,
+                    v: e1,
+                    x0,
+                    q: Vec6::from_t_a(t, a),
+                }
+                .d_grad_p_affine();
+                let _grad_t = _grad.t_vec();
+                let _grad_a = _grad.a_mat();
+                ContactNodeGrad::Affine {
+                    t: _grad_t,
+                    a: _grad_a,
+                    index,
+                }
+            }
         };
 
         let g_e0 = match self.e.0 {
@@ -477,6 +500,24 @@ impl ContactElem {
                 else {
                     // do nothing for now
                     // todo!()
+                }
+            }
+
+            (
+                ContactNode::Affine { t, a, x0, index },
+                (ContactNode::Static(e0), ContactNode::Static(e1)),
+            ) => {
+                let _hess = PointContactArg {
+                    u: *e0,
+                    v: *e1,
+                    x0: *x0,
+                    q: Vec6::from_t_a(*t, *a),
+                }
+                .d_hess_p_affine();
+
+                // copy to hessian storage
+                for (i, j) in (0..6).zip(0..6) {
+                    res.storage[(i, j)] = _hess[(i, j)];
                 }
             }
 

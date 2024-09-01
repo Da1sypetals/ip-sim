@@ -9,17 +9,16 @@ IP(Incremental-potential)-based simulation written in rust.
 - Currently implemented collision types:
     - **body-boundary**
     - **inter-springbody** 
-- To implement a new type of collision:
+- To implement a new type of contact:
     - Contact-IP entrance: `damped_newton_with_contact.rs` function `fill_frame`;
     - Collision detection: refer to `inter_body.rs`.
 - There are artifacts when two points collide (compared to point-edge collision).
 
-## Recent TODO:
-- Implement hessian for contact IP energy (case 3);
-- grad and hess for the `Affine` variant in `ContactNode` (implement `ContactElem.distance_grad` and `distance_hess`)
-- Implement affine body
+## TODO:
+0. Test affinebody contact with boundary
+1. Edge on affine body: contact IP grad&hess
+2. Contact: affinebody inter-body, affinebody with springsbody
+3. Implement inter-body (contact and ccd) pair collection;
 
-## Further TODO:
-- Hessian for contact IP energy (case 3);
-- Friction;
-- Implement affine body.
+# Questions
+1. How to implement singleton in rust?

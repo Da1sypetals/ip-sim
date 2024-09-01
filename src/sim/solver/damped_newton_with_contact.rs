@@ -86,7 +86,23 @@ impl DampedNewtonSolverWithContact {
         for body in &sim.bodies {
             let dof = body.extract_dof(&frame.dof);
             match body {
-                Body::Affine() => todo!(),
+                Body::Affine(ab, offset) => {
+                    // fill fields according to option
+                    if fill_energy {
+                        let energy = sim.affinebody_ip.value(ab, &dof);
+                        frame.energy += energy;
+                    }
+                    if fill_grad {
+                        let mut grad = Col::<f32>::zeros(6);
+                        sim.affinebody_ip.grad(ab, &dof, &mut grad);
+                        frame.append_grad(&grad, *offset);
+                    }
+                    if fill_hess {
+                        let mut hess = Hess::new(6);
+                        sim.affinebody_ip.hess(ab, &dof, &mut hess);
+                        frame.append_hess(&hess, *offset);
+                    }
+                }
                 Body::Soft() => todo!(),
                 Body::Springs(spbody, offset) => {
                     // fill fields according to option
@@ -120,7 +136,17 @@ impl DampedNewtonSolverWithContact {
         for body in &sim.bodies {
             // use raw dof here
             match body {
-                Body::Affine() => todo!(),
+                Body::Affine(ab, offset) => {
+                    for iv in 0..ab.nvert {
+                        Boundary::collect_contact_pairs_affinebody_with_boundary(
+                            ab,
+                            *offset,
+                            &frame.dof,
+                            sim.contact_ip.run_config.dhat,
+                            &mut contact_pairs,
+                        )
+                    }
+                }
                 Body::Soft() => todo!(),
                 Body::Springs(spbody, offset) => {
                     let n: usize = spbody.ndof / 2;
