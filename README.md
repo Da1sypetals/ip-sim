@@ -1,6 +1,7 @@
 # IP-sim 
 
 IP(Incremental-potential)-based simulation written in rust.
+See `demo/` for demonstrations.
 
 ## Note:
 - Use `vis` visualizer:
