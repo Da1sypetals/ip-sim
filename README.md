@@ -1,7 +1,11 @@
 # IP-sim 
 
 IP(Incremental-potential)-based simulation written in rust.
-See `demo/` for demonstrations.
+
+## Demos
+![springs](demo/springs.gif)
+![affine](demo/affine.gif)
+
 
 ## Note:
 - Use `vis` visualizer:
@@ -21,5 +25,5 @@ See `demo/` for demonstrations.
 2. Contact: affinebody inter-body, affinebody with springsbody
 3. Implement inter-body (contact and ccd) pair collection;
 
-# Questions
+## Questions
 1. How to implement singleton in rust?
