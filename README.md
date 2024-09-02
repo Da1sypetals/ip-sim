@@ -3,9 +3,9 @@
 IP(Incremental-potential)-based simulation written in rust.
 
 ## Demos
-
+1. Springs 
 ![springs](demo/springs.gif)
-
+2. Affine body
 ![affine](demo/affine.gif)
 
 
