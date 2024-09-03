@@ -28,9 +28,29 @@ pub struct AffineBody {
 }
 
 impl AffineBody {
-    pub fn new(poly: Polygon, kappa: f32) -> Self {
+    pub fn edges(&self, q: &Vec6) -> Vec<(glm::Vec2, glm::Vec2)> {
+        let mut res = Vec::new();
+        for i in 0..self.nvert {
+            let iu = i;
+            let iv = (i + 1) % self.nvert;
+            res.push((self.pos(q, iu), self.pos(q, iv)));
+        }
+        res
+    }
+
+    pub fn edges_enumerate(&self, q: &Vec6) -> Vec<((usize, usize), (glm::Vec2, glm::Vec2))> {
+        let mut res = Vec::new();
+        for i in 0..self.nvert {
+            let iu = i;
+            let iv = (i + 1) % self.nvert;
+            res.push(((iu, iv), (self.pos(q, iu), self.pos(q, iv))));
+        }
+        res
+    }
+
+    pub fn new(poly: Polygon, kappa: f32, x0: f32, y0: f32) -> Self {
         let scale = 1f32;
-        let q0 = Vec6::new(0.0, 0.0, scale, 0.0, 0.0, scale);
+        let q0 = Vec6::new(x0, y0, scale, 0.0, 0.0, scale);
         Self {
             ndof: 6,
             nvert: poly.n,
@@ -49,6 +69,7 @@ impl AffineBody {
         let mut density = 0.0;
         let mut kappa: f32 = 0.0;
         let mut section = None;
+        let (mut x0, mut y0) = (0f32, 0f32);
 
         for line in reader.lines() {
             let line = line?;
@@ -75,6 +96,25 @@ impl AffineBody {
                     "!kappa" => {
                         if let Some(kappa_str) = line.split_whitespace().nth(1) {
                             kappa = kappa_str.parse().map_err(|_| {
+                                io::Error::new(io::ErrorKind::InvalidData, "Invalid density format")
+                            })?;
+                        } else {
+                            return Err(io::Error::new(
+                                io::ErrorKind::InvalidData,
+                                "Kappa value missing",
+                            ));
+                        }
+                        section = None; // Move to the next section
+                    }
+                    "!translate" => {
+                        if let (Some(x0s), Some(y0s)) = (
+                            line.split_whitespace().nth(1),
+                            line.split_whitespace().nth(2),
+                        ) {
+                            x0 = x0s.parse().map_err(|_| {
+                                io::Error::new(io::ErrorKind::InvalidData, "Invalid density format")
+                            })?;
+                            y0 = y0s.parse().map_err(|_| {
                                 io::Error::new(io::ErrorKind::InvalidData, "Invalid density format")
                             })?;
                         } else {
@@ -130,7 +170,7 @@ impl AffineBody {
 
         let poly = Polygon::new(nodes, density);
 
-        Ok(Self::new(poly, kappa))
+        Ok(Self::new(poly, kappa, x0, y0))
     }
 
     pub fn index(offset: usize) -> (usize, usize, usize, usize, usize, usize) {

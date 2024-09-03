@@ -27,7 +27,7 @@ pub fn hess_case1(
         hess_case1_0_3(a11, a12, a21, a22, px, py, tx, ty, ux, uy),
         hess_case1_0_4(a11, a12, a21, a22, px, py, tx, ty, ux, uy),
         hess_case1_0_5(a11, a12, a21, a22, px, py, tx, ty, ux, uy),
-        hess_case1_0_0(a11, a12, a21, a22, px, py, tx, ty, ux, uy),
+        hess_case1_1_0(a11, a12, a21, a22, px, py, tx, ty, ux, uy),
         hess_case1_1_1(a11, a12, a21, a22, px, py, tx, ty, ux, uy),
         hess_case1_1_2(a11, a12, a21, a22, px, py, tx, ty, ux, uy),
         hess_case1_1_3(a11, a12, a21, a22, px, py, tx, ty, ux, uy),

@@ -11,7 +11,10 @@ use crate::{
 
 use super::{
     accd::CcdPair,
-    generated_interface::{dist_affine::PointContactArg, dist_node::d_grad_p_node},
+    generated_interface::{
+        dist_affine::{EdgeContactArg, PointContactArg},
+        dist_node::d_grad_p_node,
+    },
 };
 
 pub enum ContactNodeGrad {
@@ -340,11 +343,39 @@ impl ContactElem {
                 index: index,
             },
             ContactNode::Affine {
-                a: _,
-                t: _,
-                x0: _,
+                a,
+                t,
+                x0: u0,
                 index,
-            } => todo!(),
+            } => {
+                // make sure e1 is also affine
+                // todo: refactor: match (e0, e1) tuple
+                if let ContactNode::Affine {
+                    a: _,
+                    t: _,
+                    x0: v0,
+                    index: _,
+                } = &self.e.1
+                {
+                    let _grad = EdgeContactArg {
+                        u0,
+                        v0: *v0,
+                        q: Vec6::from_t_a(t, a),
+                        x: p,
+                    }
+                    .d_grad_e_affine();
+                    let _grad_t = _grad.t_vec() * 0.5;
+                    let _grad_a = _grad.a_mat() * 0.5;
+
+                    ContactNodeGrad::Affine {
+                        t: _grad_t,
+                        a: _grad_a,
+                        index,
+                    }
+                } else {
+                    panic!("Expect 2 vertices to both be on the affine body!");
+                }
+            }
         };
 
         let g_e1 = match self.e.1 {
@@ -354,11 +385,38 @@ impl ContactElem {
                 index: index,
             },
             ContactNode::Affine {
-                a: _,
-                t: _,
-                x0: _,
+                a,
+                t,
+                x0: v0,
                 index,
-            } => todo!(),
+            } => {
+                // make sure e0 is also affine
+                if let ContactNode::Affine {
+                    a: _,
+                    t: _,
+                    x0: u0,
+                    index: _,
+                } = &self.e.0
+                {
+                    let _grad = EdgeContactArg {
+                        u0: *u0,
+                        v0,
+                        q: Vec6::from_t_a(t, a),
+                        x: p,
+                    }
+                    .d_grad_e_affine();
+                    let _grad_t = _grad.t_vec() * 0.5;
+                    let _grad_a = _grad.a_mat() * 0.5;
+
+                    ContactNodeGrad::Affine {
+                        t: _grad_t,
+                        a: _grad_a,
+                        index,
+                    }
+                } else {
+                    panic!("Expect 2 vertices to both be on the affine body!");
+                }
+            }
         };
 
         ContactElemGrad {
@@ -518,6 +576,53 @@ impl ContactElem {
                 // copy to hessian storage
                 for (i, j) in (0..6).zip(0..6) {
                     res.storage[(i, j)] = _hess[(i, j)];
+                }
+            }
+
+            (
+                ContactNode::Affine {
+                    t: tp,
+                    a: ap,
+                    x0: x0p,
+                    index: index_p,
+                },
+                (
+                    ContactNode::Affine {
+                        t: tu,
+                        a: au,
+                        x0: u0,
+                        index: index_u,
+                    },
+                    ContactNode::Affine {
+                        t: tv,
+                        a: av,
+                        x0: v0,
+                        index: v,
+                    },
+                ),
+            ) => {
+                let p_hess = PointContactArg {
+                    u: au * u0 + tu,
+                    v: av * v0 + tv,
+                    x0: *x0p,
+                    q: Vec6::from_t_a(*tp, *ap),
+                }
+                .d_hess_p_affine();
+
+                let e_hess = EdgeContactArg {
+                    u0: *u0,
+                    v0: *v0,
+                    q: Vec6::from_t_a(*tu, *au),
+                    x: ap * x0p + tp,
+                }
+                .d_hess_e_affine();
+
+                for (i, j) in (0..6).zip(0..6) {
+                    res.storage[(i, j)] = p_hess[(i, j)];
+                }
+
+                for (i, j) in (0..6).zip(0..6) {
+                    res.storage[(i + 6, j + 6)] = e_hess[(i, j)];
                 }
             }
 

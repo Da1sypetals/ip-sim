@@ -186,11 +186,13 @@ impl AccdMassive {
             }
         }
 
-        // 2. springbody inter-body
+        // 2. inter-body
         for i in 0..sim.bodies.len() {
             for j in i + 1..sim.bodies.len() {
                 let b1 = &sim.bodies[i];
                 let b2 = &sim.bodies[j];
+
+                // springbody inter-body
                 if let Body::Springs(spb1, off1) = b1 {
                     if let Body::Springs(spb2, off2) = b2 {
                         // p1 collide with e2
@@ -240,6 +242,61 @@ impl AccdMassive {
                                     ),
                                 };
                                 t = t.min(accd.toi(&cpos, &cdir));
+                            }
+                        }
+                    }
+                }
+
+                // affinebody inter-body
+                if let Body::Affine(ab1, off1) = b1 {
+                    if let Body::Affine(ab2, off2) = b2 {
+                        // extract q1 and q2
+                        let q1 = Vec6::from_dof(dof, *off1);
+                        let dq1 = Vec6::from_dof(dir, *off1);
+                        let q2 = Vec6::from_dof(dof, *off2);
+                        let dq2 = Vec6::from_dof(dir, *off2);
+
+                        // p1 - e2
+                        for ip in 0..ab1.nvert {
+                            let p = ab1.pos(&q1, ip);
+                            let dp = ab1.pos_delta(&q1, &dq1, ip);
+                            for ((iu, iv), e) in ab2.edges_enumerate(&q2) {
+                                let de1 = ab2.pos_delta(&q2, &dq2, iu);
+                                let de2 = ab2.pos_delta(&q2, &dq2, iv);
+                                let cpos = CcdPair { p, e };
+                                let cdir = CcdDir {
+                                    p: dp,
+                                    e: (de1, de2),
+                                };
+
+                                t = t.min(accd.toi(&cpos, &cdir));
+                                // debug
+                                let toi = accd.toi(&cpos, &cdir);
+                                if toi < 1.0 {
+                                    println!("collision detected!");
+                                }
+                            }
+                        }
+
+                        // p2 - e1
+                        for ip in 0..ab2.nvert {
+                            let p = ab2.pos(&q2, ip);
+                            let dp = ab2.pos_delta(&q2, &dq2, ip);
+                            for ((iu, iv), e) in ab1.edges_enumerate(&q1) {
+                                let de1 = ab1.pos_delta(&q1, &dq1, iu);
+                                let de2 = ab1.pos_delta(&q1, &dq1, iv);
+                                let cpos = CcdPair { p, e };
+                                let cdir = CcdDir {
+                                    p: dp,
+                                    e: (de1, de2),
+                                };
+
+                                t = t.min(accd.toi(&cpos, &cdir));
+                                // debug
+                                let toi = accd.toi(&cpos, &cdir);
+                                if toi < 1.0 {
+                                    println!("collision detected!");
+                                }
                             }
                         }
                     }

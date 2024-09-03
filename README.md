@@ -4,9 +4,12 @@ IP(Incremental-potential)-based simulation written in rust.
 
 ## Demos
 1. Springs 
-    - ![springs](demo/springs.gif)
+
+![springs](demo/springs.gif)
+
 2. Affine body
-    - ![affine](demo/affine.gif)
+
+![affine](demo/affine.gif)
 
 
 ## Note:
@@ -22,9 +25,10 @@ IP(Incremental-potential)-based simulation written in rust.
 - There are artifacts when two points collide (compared to point-edge collision).
 
 ## TODO:
-0. Test affinebody contact with boundary
-1. Edge on affine body: contact IP grad&hess
+1. Test: edge on affine body: contact IP grad&hess
 2. Contact: affinebody inter-body, affinebody with springsbody
+    - inter-body ccd 
+    - inter-body contact pair
 3. Implement inter-body (contact and ccd) pair collection;
 
 ## Questions

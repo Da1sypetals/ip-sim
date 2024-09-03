@@ -100,9 +100,7 @@ impl Simulation {
         for (i, body) in self.bodies.iter_mut().enumerate() {
             match body {
                 Body::Affine(ab, offset) => {
-                    let mut q_col = Col::<f32>::zeros(6);
-                    q_col.copy_from(self.dof.as_ref().subrows(*offset, 6));
-                    let new_q = Vec6::from_col(&q_col);
+                    let new_q = Vec6::from_dof(&self.dof, *offset);
 
                     ab.dq = (new_q - ab.q) / self.affinebody_ip.rc.dt;
                     ab.q = new_q;

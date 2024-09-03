@@ -93,9 +93,7 @@ impl Boundary {
     ) {
         for edge in Boundary::edges_extended() {
             for i in 0..ab.nvert {
-                let mut qcol = Col::<f32>::zeros(6);
-                qcol.copy_from(dof.as_ref().subrows(offset, 6));
-                let q = Vec6::from_col(dof);
+                let q = Vec6::from_dof(dof, offset);
                 let x = ab.pos(&q, i);
 
                 let pair = ContactElem {

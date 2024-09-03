@@ -87,9 +87,11 @@ async fn main() {
     // gen_bodies.push(GenericBody::Springs(spbody));
     // gen_bodies.push(GenericBody::Springs(spbody2));
 
-    let ab = AffineBody::from_file("ab.poly").expect("Failed to read from affine body!");
+    let ab1 = AffineBody::from_file("bodies/ab.poly").expect("Failed to read from affine body!");
+    let ab2 = AffineBody::from_file("bodies/ab2.poly").expect("Failed to read from affine body!");
     let mut gen_bodies: Vec<GenericBody> = Vec::new();
-    gen_bodies.push(GenericBody::Affine(ab));
+    gen_bodies.push(GenericBody::Affine(ab1));
+    gen_bodies.push(GenericBody::Affine(ab2));
 
     let mut sim = Simulation::new(gen_bodies, &run_config);
 
