@@ -3,9 +3,12 @@ use super::{
     affine_contact::{ContactElem, ContactNode},
     boundary::{self, Boundary},
 };
-use crate::sim::{
-    sim::Simulation,
-    utils::{affine_utils::interop::InteropCol, misc::dof_index, types::Vec6},
+use crate::{
+    pause,
+    sim::{
+        sim::Simulation,
+        utils::{affine_utils::interop::InteropCol, misc::dof_index, types::Vec6},
+    },
 };
 use faer::{dbgf, Col};
 
@@ -260,21 +263,20 @@ impl AccdMassive {
                         for ip in 0..ab1.nvert {
                             let p = ab1.pos(&q1, ip);
                             let dp = ab1.pos_delta(&q1, &dq1, ip);
-                            for ((iu, iv), e) in ab2.edges_enumerate(&q2) {
-                                let de1 = ab2.pos_delta(&q2, &dq2, iu);
-                                let de2 = ab2.pos_delta(&q2, &dq2, iv);
+                            for (e, de) in ab2.edges_and_deltas(&q2, &dq2) {
                                 let cpos = CcdPair { p, e };
-                                let cdir = CcdDir {
-                                    p: dp,
-                                    e: (de1, de2),
-                                };
+                                let cdir = CcdDir { p: dp, e: de };
 
                                 t = t.min(accd.toi(&cpos, &cdir));
                                 // debug
-                                let toi = accd.toi(&cpos, &cdir);
-                                if toi < 1.0 {
-                                    println!("collision detected!");
-                                }
+                                // let toi = accd.toi(&cpos, &cdir);
+                                // if toi < 1.0 {
+                                //     println!("collision detected!");
+                                //     println!("p1-e2 collided on toi = {toi}");
+                                //     dbg!(&cpos);
+                                //     dbg!(&cdir);
+                                //     pause();
+                                // }
                             }
                         }
 
@@ -282,21 +284,20 @@ impl AccdMassive {
                         for ip in 0..ab2.nvert {
                             let p = ab2.pos(&q2, ip);
                             let dp = ab2.pos_delta(&q2, &dq2, ip);
-                            for ((iu, iv), e) in ab1.edges_enumerate(&q1) {
-                                let de1 = ab1.pos_delta(&q1, &dq1, iu);
-                                let de2 = ab1.pos_delta(&q1, &dq1, iv);
+                            for (e, de) in ab1.edges_and_deltas(&q1, &dq1) {
                                 let cpos = CcdPair { p, e };
-                                let cdir = CcdDir {
-                                    p: dp,
-                                    e: (de1, de2),
-                                };
+                                let cdir = CcdDir { p: dp, e: de };
 
                                 t = t.min(accd.toi(&cpos, &cdir));
                                 // debug
-                                let toi = accd.toi(&cpos, &cdir);
-                                if toi < 1.0 {
-                                    println!("collision detected!");
-                                }
+                                // let toi = accd.toi(&cpos, &cdir);
+                                // if toi < 1.0 {
+                                //     println!("collision detected!");
+                                //     println!("p2-e1 collided on toi = {toi}");
+                                //     dbg!(&cpos);
+                                //     dbg!(&cdir);
+                                //     pause();
+                                // }
                             }
                         }
                     }

@@ -1,8 +1,8 @@
 !density 3.0
 
-!kappa 0.8
+!kappa 0.1
 
-!translate 0.0 0.3
+!translate -0.25 0.3
 
 !nodes
 0.0 0.0

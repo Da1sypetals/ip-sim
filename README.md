@@ -11,6 +11,13 @@ IP(Incremental-potential)-based simulation written in rust.
 
 ![affine](demo/affine.gif)
 
+# Problems:
+Penetration persists.
+1. No problem in ACCD implementation.
+2. Problem could lies in:
+   1. numerical issues;
+   2. wrong gradients & hessian of contact IP on affine bodies.
+
 
 ## Note:
 - Use `vis` visualizer:

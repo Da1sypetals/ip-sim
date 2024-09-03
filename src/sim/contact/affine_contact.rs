@@ -197,6 +197,7 @@ impl ContactElemGrad {
             e: (self.e.0.scaled_by(scalar), self.e.1.scaled_by(scalar)),
         }
     }
+
     pub fn assemble(&self) -> Col<f32> {
         let ndof = self.p.ndof() + self.e.0.ndof() + self.e.1.ndof();
         let mut res = Col::zeros(ndof);
@@ -259,6 +260,36 @@ impl ContactElemGrad {
 
     pub fn add_to(&self, result: &mut Col<f32>) {
         match self.p {
+            ContactNodeGrad::Static() => (),
+            ContactNodeGrad::Node { p, index } => {
+                result[index.0] = p.x;
+                result[index.1] = p.y;
+            }
+            ContactNodeGrad::Affine { t, a, index } => {
+                result[index.0] = t.x;
+                result[index.1] = t.y;
+                result[index.2] = a[(0, 0)];
+                result[index.3] = a[(0, 1)];
+                result[index.4] = a[(1, 0)];
+                result[index.5] = a[(1, 1)];
+            }
+        }
+        match self.e.0 {
+            ContactNodeGrad::Static() => (),
+            ContactNodeGrad::Node { p, index } => {
+                result[index.0] = p.x;
+                result[index.1] = p.y;
+            }
+            ContactNodeGrad::Affine { t, a, index } => {
+                result[index.0] = t.x;
+                result[index.1] = t.y;
+                result[index.2] = a[(0, 0)];
+                result[index.3] = a[(0, 1)];
+                result[index.4] = a[(1, 0)];
+                result[index.5] = a[(1, 1)];
+            }
+        }
+        match self.e.1 {
             ContactNodeGrad::Static() => (),
             ContactNodeGrad::Node { p, index } => {
                 result[index.0] = p.x;
@@ -340,7 +371,7 @@ impl ContactElem {
             ContactNode::Static(_) => ContactNodeGrad::Static(),
             ContactNode::Node { p: _, index } => ContactNodeGrad::Node {
                 p: d_grad_e0_node(p, e0, e1),
-                index: index,
+                index,
             },
             ContactNode::Affine {
                 a,

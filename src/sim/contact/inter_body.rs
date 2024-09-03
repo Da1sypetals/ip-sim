@@ -113,6 +113,10 @@ pub fn collect_interbody_contact_pairs(
                             },
                         ),
                     };
+
+                    if pair.distance() < dhat {
+                        pairs.push(pair);
+                    }
                 }
             }
 
@@ -145,6 +149,10 @@ pub fn collect_interbody_contact_pairs(
                             },
                         ),
                     };
+
+                    if pair.distance() < dhat {
+                        pairs.push(pair);
+                    }
                 }
             }
         }

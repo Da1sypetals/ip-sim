@@ -28,22 +28,29 @@ pub struct AffineBody {
 }
 
 impl AffineBody {
-    pub fn edges(&self, q: &Vec6) -> Vec<(glm::Vec2, glm::Vec2)> {
-        let mut res = Vec::new();
-        for i in 0..self.nvert {
-            let iu = i;
-            let iv = (i + 1) % self.nvert;
-            res.push((self.pos(q, iu), self.pos(q, iv)));
-        }
-        res
-    }
-
     pub fn edges_enumerate(&self, q: &Vec6) -> Vec<((usize, usize), (glm::Vec2, glm::Vec2))> {
         let mut res = Vec::new();
         for i in 0..self.nvert {
             let iu = i;
             let iv = (i + 1) % self.nvert;
-            res.push(((iu, iv), (self.pos(q, iu), self.pos(q, iv))));
+            let e = (self.pos(q, iu), self.pos(q, iv));
+            res.push(((iu, iv), e));
+        }
+        res
+    }
+
+    pub fn edges_and_deltas(
+        &self,
+        q: &Vec6,
+        dq: &Vec6,
+    ) -> Vec<((glm::Vec2, glm::Vec2), (glm::Vec2, glm::Vec2))> {
+        let mut res = Vec::new();
+        for i in 0..self.nvert {
+            let iu = i;
+            let iv = (i + 1) % self.nvert;
+            let e = (self.pos(q, iu), self.pos(q, iv));
+            let de = (self.pos_delta(q, dq, iu), self.pos_delta(q, dq, iv));
+            res.push((e, de));
         }
         res
     }
