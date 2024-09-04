@@ -7,6 +7,7 @@ use macroquad::prelude::*;
 use sim::body::affinebody::AffineBody;
 use sim::body::body::GenericBody;
 use sim::body::springsbody::SpringsBody;
+use sim::meta::get_bodies;
 use sim::sim::Simulation;
 use std::env;
 use std::io::{self, Write};
@@ -84,12 +85,7 @@ async fn main() {
     // gen_bodies.push(GenericBody::Springs(spbody));
     // gen_bodies.push(GenericBody::Springs(spbody2));
 
-    let ab1 = AffineBody::from_file("bodies/ab.poly").expect("Failed to read from affine body!");
-    let ab2 = AffineBody::from_file("bodies/ab2.poly").expect("Failed to read from affine body!");
-    let mut gen_bodies: Vec<GenericBody> = Vec::new();
-    gen_bodies.push(GenericBody::Affine(ab1));
-    gen_bodies.push(GenericBody::Affine(ab2));
-
+    let gen_bodies = get_bodies();
     let mut sim = Simulation::new(gen_bodies, &run_config);
 
     // ############################# init end ################################
